@@ -28,7 +28,7 @@ class UnitController extends Controller
 
     public function index()
     {
-        $units = Unit::all();
+        $units = Unit::with('leases')->get();
         $pendingLeases = Lease::with('tenant', 'unit')
                             ->where('lea_status', 'pending')
                             ->get();
@@ -66,6 +66,7 @@ class UnitController extends Controller
             'room_price' => 'required|numeric|min:0',
             'status' => 'required|in:vacant,occupied',
             'capacity' => 'required|integer|min:1',
+            'application_limit' => 'required|integer|min:1',
         ]);
 
         Unit::create([
@@ -74,6 +75,7 @@ class UnitController extends Controller
             'room_price' => $request->room_price,
             'status' => $request->status,
             'capacity' => $request->capacity,
+            'application_limit' => $request->application_limit,
         ]);
 
         return redirect()->route('manager.units.index')->with('success', 'Unit added successfully.');
@@ -102,9 +104,10 @@ class UnitController extends Controller
             'room_price' => 'required|numeric|min:0',
             'status' => 'required|in:vacant,occupied',
             'capacity' => 'required|integer|min:1',
+            'application_limit' => 'required|integer|min:1',
         ]);
 
-        $unit->update($request->only(['type', 'room_no', 'room_price', 'status', 'capacity']));
+        $unit->update($request->only(['type', 'room_no', 'room_price', 'status', 'capacity', 'application_limit']));
 
         return redirect()->route('manager.units.index')
             ->with('success', 'Unit updated successfully.');
@@ -136,12 +139,6 @@ public function approveAdditionalUnit($userId, $unitId, $leaseId)
     $unit = Unit::find($unitId);
     if (!$unit) {
         return redirect()->back()->with('error', 'Selected unit not found.');
-    }
-
-    // Find the specific lease to approve
-    $leaseToApprove = Lease::find($leaseId);
-    if (!$leaseToApprove || $leaseToApprove->user_id != $userId || $leaseToApprove->unit_id != $unitId) {
-        return redirect()->back()->with('error', 'Lease not found or invalid.');
     }
 
     // Approve tenant if not already approved
@@ -183,21 +180,39 @@ public function approveAdditionalUnit($userId, $unitId, $leaseId)
     $user->utility_amount  = ($user->utility_amount ?? 0) + $monthlyUtilities;
     $user->save();
 
-    // Approve the specific lease
-    $leaseToApprove->update([
-        'lea_start_date' => $startDate,
-        'lea_end_date'   => $endDate,
-        'lea_status'     => 'active',
-        'room_no'        => $unit->room_no,
-        'lea_terms'      => $leaseTermText,
-        'bed_number'     => $tenantApp->bed_number ?? null,
-    ]);
+    // Update or create lease for this unit
+     $lease = Lease::where('id', $leaseId)
+                ->where('user_id', $user->id)
+                ->where('unit_id', $unit->id)
+                ->first();
 
-    // Reject/terminate all other pending leases for the same unit
-    Lease::where('unit_id', $unitId)
-         ->where('id', '!=', $leaseId)
-         ->where('lea_status', 'pending')
-         ->update(['lea_status' => 'rejected']);
+    if ($lease) {
+        $lease->update([
+            'lea_start_date' => $startDate,
+            'lea_end_date'   => $endDate,
+            'lea_status'     => 'active',
+            'room_no'        => $unit->room_no,
+            'lea_terms'      => $leaseTermText,
+            'bed_number'     => $lease->bed_number ? $lease->bed_number : $tenantApp->bed_number ?? null,
+            'deposit_balance' => $depositAmount,
+            'rent_balance' => $monthlyRent,
+            'utility_balance' => ($lease->utility_balance ?? 0 ) + $monthlyRent,
+        ]);
+    } else {
+        Lease::create([
+            'user_id'        => $user->id,
+            'unit_id'        => $unit->id,
+            'lea_start_date' => $startDate,
+            'lea_end_date'   => $endDate,
+            'lea_status'     => 'active',
+            'room_no'        => $unit->room_no,
+            'lea_terms'      => $leaseTermText,
+            'bed_number'     => $tenantApp->bed_number ?? null,
+            'deposit_balance' => $depositAmount,
+            'rent_balance' => $monthlyRent,
+            'utility_balance' => ($lease->utility_balance ?? 0 ) + $monthlyRent,
+        ]);
+    }
 
     return redirect()->back()->with('success', 'Tenant approved successfully, and financials updated cumulatively.');
 }
@@ -214,10 +229,14 @@ public function rejectAdditionalUnit($userId, $unitId, $leaseId)
         return redirect()->back()->with('error', 'Selected unit not found.');
     }
 
-    // Find the specific lease to reject
-    $lease = Lease::find($leaseId);
-    if (!$lease || $lease->user_id != $userId || $lease->unit_id != $unitId) {
-        return redirect()->back()->with('error', 'Lease not found or invalid.');
+    // Find the lease for this unit
+    $lease = Lease::where('id', $leaseId)
+                ->where('user_id', $user->id)
+                ->where('unit_id', $unit->id)
+                ->first();
+
+    if (!$lease) {
+        return redirect()->back()->with('error', 'Lease not found for this unit.');
     }
 
     // Update lease status to rejected
@@ -226,7 +245,73 @@ public function rejectAdditionalUnit($userId, $unitId, $leaseId)
     ]);
 
     // Set unit status to vacant
-    $unit->status = 'vacant';
+    if ($unit->type === 'Bed-Spacer') {
+        $unit->no_of_occupants = ($unit->no_of_occupants ?? 0) + 1;
+
+        // Only mark as 'occupied' if full
+        if ($unit->no_of_occupants >= $unit->capacity) {
+            $unit->status = 'occupied';
+        }else{
+            $unit->status = 'vacant';
+        }
+    } else {
+        // Other unit types are fully occupied
+        $unit->status = 'vacant';
+    }
+    $unit->save();
+
+    // Create notification for the tenant
+    Notification::create([
+        'user_id' => $user->id,
+        'title'   => 'Unit Application Rejected',
+        'message' => "Your application for room {$unit->room_no} has been rejected."
+    ]);
+
+    return redirect()->back()->with('success', 'Unit application rejected successfully.');
+}
+
+
+public function cancelAdditionalUnit($userId, $unitId, $leaseId)
+{
+    $user = User::find($userId);
+    if (!$user || $user->role !== 'tenant') {
+        return redirect()->back()->with('error', 'Invalid tenant.');
+    }
+
+    $unit = Unit::find($unitId);
+    if (!$unit) {
+        return redirect()->back()->with('error', 'Selected unit not found.');
+    }
+
+    // Find the lease for this unit
+    $lease = Lease::where('id', $leaseId)
+                ->where('user_id', $user->id)
+                ->where('unit_id', $unit->id)
+                ->first();
+
+    if (!$lease) {
+        return redirect()->back()->with('error', 'Lease not found for this unit.');
+    }
+
+    // Update lease status to rejected
+    $lease->update([
+        'lea_status' => 'cancelled'
+    ]);
+
+    // Set unit status to vacant
+    if ($unit->type === 'Bed-Spacer') {
+        $unit->no_of_occupants = ($unit->no_of_occupants ?? 0) + 1;
+
+        // Only mark as 'occupied' if full
+        if ($unit->no_of_occupants >= $unit->capacity) {
+            $unit->status = 'occupied';
+        }else{
+            $unit->status = 'vacant';
+        }
+    } else {
+        // Other unit types are fully occupied
+        $unit->status = 'vacant';
+    }
     $unit->save();
 
     // Create notification for the tenant

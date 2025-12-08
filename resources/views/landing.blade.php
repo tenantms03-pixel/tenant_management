@@ -26,14 +26,29 @@
 
         @foreach($groupedUnits as $type => $typeUnits)
             <div class="col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm border-0 rounded-4 hover-card glass-card"
-                     data-bs-toggle="modal"
-                     data-bs-target="#unitModal"
-                     data-type="{{ $type }}"
-                     data-image="{{ asset('images/units/' . strtolower(str_replace(' ', '-', $type)) . '.jpg') }}"
-                     data-available="{{ $typeUnits->where('status', 'vacant')->pluck('room_no')->join(', ') }}"
-                     data-price="{{ $typeUnits->first()->room_price ?? 0 }}"
-                     data-status="Vacant">
+                @php
+                    $pendingApplicants = $typeUnits->sum(function ($unit) {
+                        return $unit->leases->where('lea_status', 'pending')->count();
+                    });
+
+                    $totalApplicationLimit = $typeUnits->sum('application_limit');
+                    $isFull = $pendingApplicants >= $totalApplicationLimit;
+
+                @endphp
+                <div class="card h-100 shadow-sm border-0 rounded-4 hover-card glass-card
+                    {{ $isFull ? 'opacity-50 pointer-events-none' : '' }}"
+                    @if(!$isFull)
+                        data-bs-toggle="modal"
+                        data-bs-target="#unitModal"
+                    @endif
+                    data-type="{{ $type }}"
+                    data-unitId="{{ $typeUnits->first()->id }}"
+                    data-capacity="{{ $typeUnits->first()->capacity }}"
+                    data-noOccupants="{{ $typeUnits->first()->no_of_occupants }}"
+                    data-image="{{ asset('images/units/' . strtolower(str_replace(' ', '-', $type)) . '.jpg') }}"
+                    data-available="{{ $typeUnits->where('status', 'vacant')->pluck('room_no')->join(', ') }}"
+                    data-price="{{ $typeUnits->first()->room_price ?? 0 }}"
+                    data-status="{{ $isFull ? 'Full' : 'Vacant' }}">
 
                     <img src="{{ asset('images/units/' . strtolower(str_replace(' ', '-', $type)) . '.jpg') }}"
                          class="card-img-top rounded-top-4"
@@ -42,10 +57,33 @@
 
                     <div class="card-body text-center">
                         <h4 class="card-title fw-bold">{{ $type }}</h4>
-                        <span class="badge bg-success mb-3">Vacant</span>
+                        @if($isFull)
+                            <span class="badge bg-danger mb-3">FULL</span>
+                        @else
+                            <span class="badge bg-success mb-3">Vacant</span>
+                        @endif
+                        {{-- Display here a pending applicant count / unit->application_limit --}}
+
                         <ul class="list-unstyled mb-0">
                             @foreach($typeUnits as $unit)
-                                <li class="py-1">Room No: {{ $unit->room_no }} [{{ $unit->no_of_occupants }}/{{ $unit->capacity }}]
+                                <li>
+                                    <p class="fw-semibold text-muted mb-2">
+                                        Pending Applications: {{ $pendingApplicants }} / {{ $totalApplicationLimit }}
+                                    </p>
+                                </li>
+                                <li class="py-1">
+                                    Room No: {{ $unit->room_no }}
+                                    [
+                                    @if($type === 'Bed-Spacer')
+                                        {{ $unit->no_of_occupants }}/{{ $unit->capacity }}
+                                    @else
+                                        {{ $unit->capacity > 1
+                                            ? $unit->capacity . ' Persons'
+                                            : $unit->capacity . ' Person'
+                                        }}
+                                    @endif
+                                    ]
+                                </li>
                             @endforeach
                         </ul>
                     </div>
@@ -170,7 +208,7 @@
                         <!-- RIGHT: Registration Form -->
                     <div class="col-lg-7">
                         <h5 class="mb-3 fw-bold text-primary">Tenant Registration & Application</h5>
-                        
+
                         {{-- Display Laravel validation errors --}}
                         @if($errors->any())
                             <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -195,7 +233,8 @@
                             @csrf
                             <div class="row g-3">
 
-                                <!-- FIRST NAME & LAST NAME -->
+                            <!-- <div>
+
                                 <div class="col-md-6">
                                     <label class="form-label">First Name</label>
                                     <input type="text" name="first_name" class="form-control @error('first_name') is-invalid @enderror" placeholder="Juan" value="{{ old('first_name') }}" required>
@@ -205,7 +244,7 @@
                                     <input type="text" name="last_name" class="form-control @error('last_name') is-invalid @enderror" placeholder="Dela Cruz" value="{{ old('last_name') }}" required>
                                 </div>
 
-                                <!-- EMAIL & CONTACT -->
+
                                 <div class="col-md-6">
                                     <label class="form-label">Email</label>
                                     <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror" placeholder="you@example.com" value="{{ old('email') }}" required>
@@ -217,7 +256,7 @@
                                     <input type="text" name="contact" class="form-control @error('contact') is-invalid @enderror" placeholder="09XXXXXXXXX" value="{{ old('contact') }}" required>
                                 </div>
 
-                                <!-- PASSWORDS -->
+
                                 <div class="col-md-6">
                                     <label class="form-label">Password</label>
                                     <div class="position-relative">
@@ -242,6 +281,75 @@
                                     </div>
                                     <small class="text-muted" id="passwordMatch"></small>
                                 </div>
+                            </div> -->
+
+                                @guest
+                                    <!-- FIRST NAME & LAST NAME -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">First Name</label>
+                                        <input type="text" name="first_name"
+                                            class="form-control @error('first_name') is-invalid @enderror"
+                                            placeholder="Juan"
+                                            value="{{ old('first_name') }}">
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Last Name</label>
+                                        <input type="text" name="last_name"
+                                            class="form-control @error('last_name') is-invalid @enderror"
+                                            placeholder="Dela Cruz"
+                                            value="{{ old('last_name') }}">
+                                    </div>
+
+                                    <!-- EMAIL & CONTACT -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" name="email" id="email"
+                                            class="form-control @error('email') is-invalid @enderror"
+                                            placeholder="you@example.com"
+                                            value="{{ old('email') }}">
+                                        <div class="invalid-feedback" id="email-error"></div>
+                                        <small class="text-muted" id="email-check-status"></small>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Contact Number</label>
+                                        <input type="text" name="contact"
+                                            class="form-control @error('contact') is-invalid @enderror"
+                                            placeholder="09XXXXXXXXX"
+                                            value="{{ old('contact') }}">
+                                    </div>
+
+                                    <!-- PASSWORDS -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Password</label>
+                                        <div class="position-relative">
+                                            <input type="password" name="password" id="password"
+                                                class="form-control @error('password') is-invalid @enderror">
+                                            <button type="button" class="btn btn-link" id="togglePassword">
+                                                <i class="bi bi-eye" id="passwordEyeIcon"></i>
+                                            </button>
+                                        </div>
+                                        @error('password')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                        <div class="password-strength" id="passwordStrength"></div>
+                                        <small class="text-muted" id="passwordHint"></small>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Confirm Password</label>
+                                        <div class="position-relative">
+                                            <input type="password" name="password_confirmation"
+                                                id="password_confirmation"
+                                                class="form-control @error('password_confirmation') is-invalid @enderror">
+                                            <button type="button" class="btn btn-link" id="togglePasswordConfirmation">
+                                                <i class="bi bi-eye" id="passwordConfirmationEyeIcon"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted" id="passwordMatch"></small>
+                                    </div>
+                                @endguest
 
                                 <!-- BIRTHDATE -->
                                 <div class="col-md-6">
@@ -277,8 +385,8 @@
                                                 }
                                             @endphp
                                             @if($unit->status === 'vacant' || ($unit->type === 'Bed-Spacer' && !$isFullyBooked))
-                                                <option value="{{ $unit->id }}" 
-                                                        data-type="{{ $unit->type }}" 
+                                                <option value="{{ $unit->id }}"
+                                                        data-type="{{ $unit->type }}"
                                                         data-capacity="{{ $unit->capacity }}"
                                                         data-taken-beds='@json($takenBeds)'
                                                         {{ old('unit_id') == $unit->id ? 'selected' : '' }}>
@@ -302,9 +410,22 @@
                                 </div>
 
                                 <!-- MOVE-IN DATE & REASON -->
-                                <div class="col-md-6">
+                                <!-- <div class="col-md-6">
                                     <label class="form-label">Preferred Move-in Date</label>
                                     <input type="date" name="move_in_date" class="form-control @error('move_in_date') is-invalid @enderror" value="{{ old('move_in_date') }}" required>
+                                </div> -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Preferred Move-in Date</label>
+
+                                    <input
+                                        type="date"
+                                        name="move_in_date"
+                                        class="form-control @error('move_in_date') is-invalid @enderror"
+                                        value="{{ old('move_in_date') }}"
+                                        min="{{ now()->toDateString() }}"
+                                        max="{{ now()->addWeeks(2)->toDateString() }}"
+                                        required
+                                    >
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Reason for Renting</label>
@@ -314,7 +435,7 @@
                                 <!-- EMPLOYMENT INFO -->
                                 <div class="col-md-6">
                                     <label class="form-label">Employment Status</label>
-                                    <select name="employment_status" class="form-select @error('employment_status') is-invalid @enderror" required>
+                                    <select name="employment_status" class="form-select @error('employment_status') is-invalid @enderror" id="employment_status" required>
                                         <option value="">Select</option>
                                         <option value="Employed" {{ old('employment_status') == 'Employed' ? 'selected' : '' }}>Employed</option>
                                         <option value="Unemployed" {{ old('employment_status') == 'Unemployed' ? 'selected' : '' }}>Unemployed</option>
@@ -326,9 +447,18 @@
                                     <input type="text" name="employer_school" class="form-control @error('employer_school') is-invalid @enderror" value="{{ old('employer_school') }}" required>
                                 </div>
 
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <label class="form-label">Source of Income</label>
-                                    <input type="text" name="source_of_income" class="form-control @error('source_of_income') is-invalid @enderror" value="{{ old('source_of_income') }}" required>
+                                    <input type="text" name="source_of_income" id="source_of_income" class="form-control @error('source_of_income') is-invalid @enderror" value="{{ old('source_of_income') }}" required>
+                                </div>
+
+                                <div class="col-md-6 d-none" id="monthlyIncomeGroup">
+                                    <label class="form-label">Monthly Income / Wages</label>
+                                    <input type="number" name="monthly_income" id="monthly_income"
+                                        class="form-control"
+                                        placeholder="Enter monthly income"
+                                        min=0
+                                    >
                                 </div>
 
                                 <!-- EMERGENCY CONTACT -->
@@ -610,7 +740,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const termsModal = document.getElementById('termsModal');
     const unitModal = document.getElementById('unitModal');
-    
+
     // Flag to track if Terms modal is opening (to prevent form reset)
     window.isTermsModalOpening = false;
 
@@ -649,20 +779,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const unitInfo = {
         "Studio": { size: "25 m²", capacity: "2 persons" },
         "1 Bedroom": { size: "35 m²", capacity: "2–3 persons" },
-        "2 Bedroom": { size: "45 m²", capacity: "4 persons" }
+        "2-Bedroom": { size: "45 m²", capacity: "4 persons" }
     };
 
     unitModalEl.addEventListener('show.bs.modal', event => {
         const card = event.relatedTarget; // clicked card (null if opened programmatically)
-        
+
         // Skip if modal is opened programmatically (e.g., for validation errors)
         if (!card) return;
-        
+
         const type = card.dataset.type;
         const image = card.dataset.image;
         const available = card.dataset.available;
         const price = card.dataset.price;
         const status = card.dataset.status;
+        const unitId = card.dataset.unitId;
+        const capacity = card.dataset.capacity;
+        const noOccupants = card.dataset.noOccupants;
 
         document.getElementById('unitModalTitle').textContent = `${type} Unit`;
         const modalImg = document.getElementById('unitModalImg');
@@ -671,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const info = unitInfo[type] || { size: "N/A", capacity: "N/A" };
         document.getElementById('unitModalSize').textContent = info.size;
-        document.getElementById('unitModalCapacity').textContent = info.capacity;
+        document.getElementById('unitModalCapacity').textContent = type === 'Bed-Spacer' ? `${noOccupants || 0}/${capacity}` : capacity;
 
         document.getElementById('unitModalAvailable').textContent = available;
         document.getElementById('unitModalPrice').textContent = Number(price).toFixed(2);
@@ -687,7 +820,7 @@ document.addEventListener('DOMContentLoaded', function() {
             zoomImg.src = modalImg.src;
             zoomModal.show();
         };
-        
+
         // Filter available rooms by unit type dynamically
         const select = document.getElementById('unit_id');
 
@@ -700,7 +833,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Automatically select blank option
         select.value = "";
-        
+
         // Hide bed selection when modal opens
         const bedSelectionGroup = document.getElementById('bedSelectionGroup');
         if (bedSelectionGroup) {
@@ -711,15 +844,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+document.addEventListener('DOMContentLoaded', function () {
+    const employmentSelect = document.getElementById('employment_status');
+    const incomeInput = document.getElementById('source_of_income');
+    const monthlyIncomeGroup = document.getElementById('monthlyIncomeGroup');
+
+    function handleEmploymentChange() {
+        const value = employmentSelect.value;
+
+        if (value === 'Student') {
+            incomeInput.value = 'Allowance';
+            incomeInput.setAttribute('readonly', true);
+            monthlyIncomeGroup.classList.add('d-none');
+        }
+
+        else if (value === 'Employed') {
+            incomeInput.value = '';
+            incomeInput.removeAttribute('readonly');
+            monthlyIncomeGroup.classList.remove('d-none');
+        }
+
+        else {
+            incomeInput.value = '';
+            incomeInput.removeAttribute('readonly');
+            monthlyIncomeGroup.classList.add('d-none');
+        }
+    }
+
+    employmentSelect.addEventListener('change', handleEmploymentChange);
+
+    // ✅ Run on page load in case of validation errors
+    handleEmploymentChange();
+});
+
 // ==================== BED SELECTION HANDLING ====================
 document.addEventListener('DOMContentLoaded', function() {
     const unitSelect = document.getElementById('unit_id');
     const bedSelectionGroup = document.getElementById('bedSelectionGroup');
     const bedSelect = document.getElementById('bed_number');
-    
+
     function populateBeds() {
         const selectedOption = unitSelect.options[unitSelect.selectedIndex];
-        
+
         if (!selectedOption || selectedOption.dataset.type !== 'Bed-Spacer') {
             // Hide bed selection for non-Bed-Spacer units
             bedSelectionGroup.classList.add('d-none');
@@ -728,22 +894,22 @@ document.addEventListener('DOMContentLoaded', function() {
             bedSelect.value = "";
             return;
         }
-        
+
         // Show bed selection for Bed-Spacer units
         bedSelectionGroup.classList.remove('d-none');
         bedSelect.required = true;
-        
+
         // Get capacity and taken beds
         const capacity = parseInt(selectedOption.dataset.capacity || '0', 10);
         const takenBeds = JSON.parse(selectedOption.dataset.takenBeds || '[]').map(Number);
-        
+
         // Calculate upper and lower bed counts
         const upperCount = Math.floor(capacity / 2);
         const lowerCount = capacity - upperCount;
-        
+
         // Build bed options - only include available beds
         let optionsMarkup = '<option value="">Select a bed</option>';
-        
+
         // Upper beds (first half): 1 to upperCount
         for (let i = 1; i <= upperCount; i++) {
             // Skip taken beds - don't show them in the dropdown
@@ -752,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 optionsMarkup += `<option value="${i}">${label}</option>`;
             }
         }
-        
+
         // Lower beds (second half): upperCount+1 to capacity
         for (let i = upperCount + 1; i <= capacity; i++) {
             // Skip taken beds - don't show them in the dropdown
@@ -761,9 +927,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 optionsMarkup += `<option value="${i}">${label}</option>`;
             }
         }
-        
+
         bedSelect.innerHTML = optionsMarkup;
-        
+
         // Restore old value if it exists and is still available
         const oldValue = bedSelect.getAttribute('data-old-value');
         if (oldValue && !takenBeds.includes(Number(oldValue))) {
@@ -773,10 +939,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         bedSelect.removeAttribute('data-old-value');
     }
-    
+
     if (unitSelect && bedSelectionGroup && bedSelect) {
         unitSelect.addEventListener('change', populateBeds);
-        
+
         // Check on page load if a Bed-Spacer is already selected (e.g., after validation error)
         if (unitSelect.value) {
             populateBeds();
@@ -793,7 +959,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ==================== FORM VALIDATION ====================
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('#unitModal form');
-    
+
     // Validation rules and messages
     const validationRules = {
         first_name: {
@@ -830,10 +996,10 @@ document.addEventListener('DOMContentLoaded', function() {
         password: {
             validate: (value) => {
                 // Must be 8+ chars with uppercase, lowercase, number, and special character
-                return value.length >= 8 && 
-                       /[a-z]/.test(value) && 
-                       /[A-Z]/.test(value) && 
-                       /\d/.test(value) && 
+                return value.length >= 8 &&
+                       /[a-z]/.test(value) &&
+                       /[A-Z]/.test(value) &&
+                       /\d/.test(value) &&
                        /[\W_]/.test(value);
             },
             message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character'
@@ -964,15 +1130,15 @@ document.addEventListener('DOMContentLoaded', function() {
         clearError(field);
         field.classList.add('is-invalid');
         field.classList.remove('is-valid');
-        
+
         // Don't show validation error message for password fields
         // The passwordHint and updatePasswordMatch functions handle the message display
         if (field.name === 'password' || field.name === 'password_confirmation') {
             return;
         }
-        
+
         const errorElement = createErrorElement(message);
-        
+
         // For checkboxes, append after the parent form-check div
         if (field.type === 'checkbox') {
             field.closest('.form-check').appendChild(errorElement);
@@ -1002,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateField(field) {
         const fieldName = field.name;
         const rule = validationRules[fieldName];
-        
+
         if (!rule) return true;
 
         const value = field.type === 'file' ? field.value : field.value;
@@ -1028,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             return;
         }
-        
+
         // Validate on blur (when leaving field)
         field.addEventListener('blur', function() {
             validateField(this);
@@ -1052,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordStrength = document.getElementById('passwordStrength');
     const passwordHint = document.getElementById('passwordHint');
     const passwordMatch = document.getElementById('passwordMatch');
-    
+
     // Password strength checker
     function checkPasswordStrength(password) {
         let strength = 0;
@@ -1066,9 +1232,9 @@ document.addEventListener('DOMContentLoaded', function() {
     passwordField.addEventListener('input', function() {
         const password = this.value;
         const strength = checkPasswordStrength(password);
-        
+
         passwordStrength.className = 'password-strength';
-        
+
         if (password.length === 0) {
             passwordStrength.className = 'password-strength';
             passwordHint.textContent = 'Must have uppercase, lowercase, number & special char';
@@ -1092,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updatePasswordMatch();
         }
     });
-    
+
     // Set initial hint
     passwordHint.textContent = 'Must have uppercase, lowercase, number & special char';
     passwordHint.className = 'text-muted';
@@ -1103,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', function() {
             passwordMatch.textContent = '';
             return;
         }
-        
+
         if (passwordField.value === confirmField.value) {
             passwordMatch.textContent = '✓ Passwords match';
             passwordMatch.className = 'text-success';
@@ -1128,7 +1294,7 @@ document.addEventListener('DOMContentLoaded', function() {
         togglePasswordBtn.addEventListener('click', function() {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            
+
             // Toggle eye icon
             if (type === 'password') {
                 passwordEyeIcon.classList.remove('bi-eye-slash');
@@ -1145,7 +1311,7 @@ document.addEventListener('DOMContentLoaded', function() {
         togglePasswordConfirmationBtn.addEventListener('click', function() {
             const type = passwordConfirmationInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordConfirmationInput.setAttribute('type', type);
-            
+
             // Toggle eye icon
             if (type === 'password') {
                 passwordConfirmationEyeIcon.classList.remove('bi-eye-slash');
@@ -1184,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!isFormValid) {
             e.preventDefault();
-            
+
             // Scroll to first invalid field
             if (firstInvalidField) {
                 firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1210,7 +1376,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <p class="mb-0 mt-1">${message}</p>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
+
         form.insertBefore(alertDiv, form.firstChild);
 
         // Auto-dismiss after 5 seconds
@@ -1229,7 +1395,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.isTermsModalOpening) {
             return;
         }
-        
+
         // Only reset if there are no validation errors
         if (!form.querySelector('.is-invalid')) {
             form.reset();
@@ -1261,16 +1427,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         emailInput.addEventListener('input', function() {
             const email = this.value.trim();
-            
+
             // Clear previous timeout
             clearTimeout(emailCheckTimeout);
-            
+
             // Clear status messages and data attribute
             emailStatus.textContent = '';
             emailError.textContent = '';
             emailInput.classList.remove('is-invalid', 'is-valid');
             emailInput.removeAttribute('data-email-available');
-            
+
             // Basic email format validation
             if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 // Wait 500ms after user stops typing before checking
@@ -1328,7 +1494,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const idPictureInput = document.getElementById('id_picture');
     const validIdPreview = document.getElementById('valid_id_preview');
     const idPicturePreview = document.getElementById('id_picture_preview');
-    
+
     // Store file data in sessionStorage for persistence across page reloads
     const STORAGE_KEY_VALID_ID = 'form_valid_id_data';
     const STORAGE_KEY_ID_PICTURE = 'form_id_picture_data';
@@ -1402,17 +1568,17 @@ document.addEventListener('DOMContentLoaded', function() {
     window.clearFilePreview = function(inputId) {
         const input = document.getElementById(inputId);
         const previewContainer = inputId === 'valid_id' ? validIdPreview : idPicturePreview;
-        
+
         input.value = '';
         previewContainer.innerHTML = '';
-        
+
         // Clear sessionStorage
         if (inputId === 'valid_id') {
             sessionStorage.removeItem(STORAGE_KEY_VALID_ID);
         } else if (inputId === 'id_picture') {
             sessionStorage.removeItem(STORAGE_KEY_ID_PICTURE);
         }
-        
+
         // Remove validation classes
         input.classList.remove('is-valid', 'is-invalid');
     };
@@ -1464,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (window.isTermsModalOpening) {
                 return;
             }
-            
+
             @if(!$errors->any())
                 // Only clear if there are no errors
                 sessionStorage.removeItem(STORAGE_KEY_VALID_ID);

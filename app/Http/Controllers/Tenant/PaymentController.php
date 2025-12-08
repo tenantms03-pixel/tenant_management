@@ -24,7 +24,7 @@ class PaymentController extends Controller
         $tenant->load(['leases' => function($q) {
             $q->whereIn('lea_status', ['active', 'pending', 'Active', 'Pending']);
         }]);
-        
+
         $lease = $tenant->leases()->latest()->first();  // Get the latest lease
 
         $payments = $tenant->payments()
@@ -41,7 +41,7 @@ class PaymentController extends Controller
         $depositExists = ($tenant->deposit_amount ?? 0) > 0;
 
         // User balances
-        $unpaidRent = $tenant->rent_balance;
+        $unpaidRent = $tenant->rent_balance ?? $tenant->rent_amount;
         // Use total utility balance from all active leases
         $unpaidUtilities = $tenant->total_utility_balance;
         $depositBalance = $tenant->deposit_amount ?? 0;
@@ -60,11 +60,11 @@ class PaymentController extends Controller
             if (!$proof->billing_month) {
                 continue; // Skip if no billing month
             }
-            
+
             $billingMonth = $proof->billing_month;
             // Use amount from proof, or fallback to lease utility_balance, or 0
             $amount = $proof->amount ?? ($proof->lease->utility_balance ?? 0);
-            
+
             if ($amount > 0) {
                 if (!isset($unpaidUtilitiesByMonth[$billingMonth])) {
                     $unpaidUtilitiesByMonth[$billingMonth] = 0;
@@ -72,7 +72,7 @@ class PaymentController extends Controller
                 $unpaidUtilitiesByMonth[$billingMonth] += $amount;
             }
         }
-        
+
         // Sort by month (most recent first) - convert to Carbon dates for proper sorting
         uksort($unpaidUtilitiesByMonth, function($a, $b) {
             try {
@@ -97,7 +97,7 @@ class PaymentController extends Controller
             try {
                 $billingDate = Carbon::parse($mostRecentBillingMonth);
                 $currentMonth = now()->startOfMonth();
-                
+
                 // If the billing month is in the future, use current month instead
                 if ($billingDate->gt($currentMonth)) {
                     $unpaidUtilitiesMonth = now()->format('F Y');

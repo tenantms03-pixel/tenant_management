@@ -5,6 +5,8 @@ use App\Models\Lease;
 
 $hasPaidDeposit = Payment::where('tenant_id', auth()->id())
     ->whereRaw('LOWER(payment_for) = ?', ['deposit'])
+    ->where('pay_status', "Accepted")
+    ->latest()
     ->exists();
 
 $hasUnreadNotifications = Notification::where('user_id', auth()->id())
@@ -32,6 +34,7 @@ $hasLease = $hasActiveLease || $hasTerminatedLease;
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
@@ -216,7 +219,7 @@ $hasLease = $hasActiveLease || $hasTerminatedLease;
                 </li>
             @endif
 
-            @if(!$hasActiveLease)
+            @if(!$hasActiveLease || !$hasPaidDeposit)
                 <li class="nav-item">
                     <a class="nav-link disabled" href="#">
                         <i class="bi bi-tools me-2"></i> Maintenance Requests
@@ -238,13 +241,20 @@ $hasLease = $hasActiveLease || $hasTerminatedLease;
                 </a>
             </li>
 
-            <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('tenant.leases') ? 'active' : '' }}"
-                href="{{ route('tenant.leases') }}">
-                    <i class="bi bi-door-open-fill me-2"></i> Lease Management
-                </a>
-            </li>
-
+            @if(!$hasActiveLease || !$hasPaidDeposit)
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">
+                        <i class="bi bi-tools me-2"></i> Lease Management
+                    </a>
+                </li>
+            @else
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('tenant.leases') ? 'active' : '' }}"
+                    href="{{ route('tenant.leases') }}">
+                        <i class="bi bi-door-open-fill me-2"></i> Lease Management
+                    </a>
+                </li>
+            @endif
 
 
             <li class="nav-item mt-4">

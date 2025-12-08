@@ -140,6 +140,7 @@ Route::middleware(['auth', 'manager'])->group(function () {
     Route::get('/manager/reports/{report}', [ReportsController::class, 'show'])->name('manager.reports.show');
     Route::get('/manager/reports/{report}/export', [ReportsController::class, 'export'])->name('manager.reports.export');
     Route::patch('/manager/payments/{payment}/status', [ReportsController::class, 'updatePaymentStatus'])->name('manager.payments.updateStatus');
+    Route::patch('/manager/payments', [ReportsController::class, 'paymentStore'])->name('manager.payments.store');
 
     // Reports export
     // Route::get('/manager/reports/{report}/export', [ReportsController::class, 'export'])->name('manager.reports.export');
@@ -159,6 +160,25 @@ Route::middleware(['auth', 'manager'])->group(function () {
     Route::post('/manager/tenants/notify/{id}', [ManagerController::class, 'notifyTenant'])
     ->name('manager.tenants.notify');
 
+    Route::get('/manager/tenant/{tenant}/leases', function ($tenantId) {
+        $leases = \App\Models\Lease::with('unit', 'tenant')
+            ->where('user_id', $tenantId)
+            ->whereIn('lea_status', ['active', 'pending'])
+            ->get()
+            ->map(function ($lease) {
+                return [
+                    'id' => $lease->id,
+                    'room_no' => $lease->room_no,
+                    'unit_type' => $lease->unit->type ?? 'Unit',
+                    'room_price' => $lease->rent_balance ?? 0,
+                    'deposit' => $lease->deposit_balance ?? 0,
+                    'utility_balance' => $lease->utility_balance,
+                ];
+            });
+
+        return response()->json($leases);
+    });
+
 
     // Requests
     Route::patch('/manager/requests/{id}/status', [MaintenanceRequestController::class, 'updateStatus'])->name('manager.requests.updateStatus');
@@ -175,6 +195,10 @@ Route::middleware(['auth', 'manager'])->group(function () {
 
     Route::post('/manager/leases/{lease}/move-out', [ManagerController::class, 'forceMoveOut'])
         ->name('manager.leases.moveOut');
+    Route::post('/manager/leases/{lease}/move-out', [ManagerController::class, 'forceMoveOut'])
+        ->name('manager.leases.approveMoveOut');
+    Route::post('/manager/leases/{lease}/reject-move-out', [ManagerController::class, 'rejectMoveOut'])
+        ->name('manager.leases.rejectMoveOut');
 
     // Units Management
     Route::get('/manager/units', [UnitController::class, 'index'])->name('manager.units.index');

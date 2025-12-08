@@ -120,10 +120,10 @@ class ManagerController extends Controller
         // Load ALL leases regardless of status (including terminated, rejected, etc.)
         // Also load tenantApplication with unit relationship to show application info when no leases exist
         $query = User::with([
-                'tenantApplication.unit', 
+                'tenantApplication.unit',
                 'leases' => function($q) {
                     $q->with('unit'); // Remove status filter to show all leases
-                }, 
+                },
                 'utilityProofs'
             ])
             ->where('role', 'tenant');
@@ -597,7 +597,7 @@ class ManagerController extends Controller
 
         foreach ($otherPendingApplications as $otherApp) {
             $otherUser = $otherApp->user;
-            
+
             // Reject the other tenant
             $otherUser->status = 'rejected';
             $otherUser->rejection_reason = 'Unit is already taken. Another application for this unit has been approved.';
@@ -650,18 +650,6 @@ class ManagerController extends Controller
         }
         $unit->save();
 
-        // Create Lease
-        $lease = Lease::create([
-            'user_id'        => $user->id,
-            'unit_id'        => $unit->id,
-            'lea_start_date' => $startDate,
-            'lea_end_date'   => $endDate,
-            'lea_status'     => 'active',
-            'room_no'        => $unit->room_no,
-            'lea_terms'      => $leaseTermText,
-            'bed_number'     => $tenantApp->bed_number ?? null,
-        ]);
-
         // Determine rent and deposit
         $unitType = $tenantApp->unit_type ?? 'Studio';
         $monthlyRent = match($unitType) {
@@ -674,12 +662,26 @@ class ManagerController extends Controller
         $depositAmount = $monthlyRent * 2;
         $monthlyUtilities = 0;
 
+        // Create Lease
+        $lease = Lease::create([
+            'user_id'        => $user->id,
+            'unit_id'        => $unit->id,
+            'lea_start_date' => $startDate,
+            'lea_end_date'   => $endDate,
+            'lea_status'     => 'active',
+            'room_no'        => $unit->room_no,
+            'lea_terms'      => $leaseTermText,
+            'bed_number'     => $tenantApp->bed_number ?? null,
+            'deposit_balance' => $depositAmount,
+            'rent_balance' => $monthlyRent,
+        ]);
+
         // Update tenant financial info
         $user->update([
             'rent_amount'     => $monthlyRent,
             'utility_amount'  => $monthlyUtilities,
             'deposit_amount'  => $depositAmount,
-            'rent_balance'    => $depositAmount,
+            'rent_balance'    => $monthlyRent,
             'utility_balance' => $monthlyUtilities,
         ]);
 
@@ -750,6 +752,8 @@ class ManagerController extends Controller
         if (!$tenant || $tenant->role !== 'tenant') {
             return redirect()->back()->with('error', 'Invalid tenant.');
         }
+
+        $tenantApp = $tenant->tenantApplication;
 
         $tenant->status = 'rejected';
         $tenant->rejection_reason = $request->rejection_reason;
@@ -837,6 +841,18 @@ class ManagerController extends Controller
             $lease->unit->save();
         }
 
+        $user_deposit = $lease->unit->room_price * 2;
+
+        $tenant = User::where('id', $lease->user_id)->first();
+
+        $tenant->update([
+            'deposit_amount' => max(0, $tenant->deposit_amount - $user_deposit),
+
+            'rent_balance' => max(0, ($tenant->rent_balance ?? 0) - ($lease->unit->room_price ?? 0)),
+
+            'rent_amount' => max(0, ($tenant->rent_amount ?? 0) - ($lease->unit->room_price ?? 0)),
+        ]);
+
         Notification::create([
             'user_id' => $lease->tenant->id,
             'title' => 'Lease Terminated',
@@ -845,4 +861,36 @@ class ManagerController extends Controller
 
         return redirect()->back()->with('success', 'Tenant marked as moved out successfully.');
     }
+
+    public function rejectMoveOut(Request $request, Lease $lease)
+    {
+        $lease->load('tenant');
+
+        if (!$lease->move_out_requested) {
+            return redirect()->back()->with('info', 'No move out request to reject for this lease.');
+        }
+
+        // Optional: you can store rejection reason if you want
+        $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $lease->move_out_requested = false;
+        $lease->save();
+
+        // Notify tenant
+        $message = 'Your move out request for room ' . ($lease->room_no ?? 'N/A') . ' has been rejected.';
+        if ($request->reason) {
+            $message .= ' Reason: ' . $request->reason;
+        }
+
+        Notification::create([
+            'user_id' => $lease->tenant->id,
+            'title' => 'Move Out Rejected',
+            'message' => $message,
+        ]);
+
+        return redirect()->back()->with('info', 'Move out request rejected.');
+    }
+
 }

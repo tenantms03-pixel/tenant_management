@@ -15,6 +15,7 @@ class UtilityBillingProof extends Model
         'lease_id',
         'file_path',
         'billing_month',
+        'billing_type',
         'amount',
         'notes',
     ];

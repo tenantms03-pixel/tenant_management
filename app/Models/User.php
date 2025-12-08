@@ -178,7 +178,7 @@ class User extends Authenticatable
         $activeLeases = $this->leases()
             ->whereIn('lea_status', ['active', 'pending', 'Active', 'Pending'])
             ->get();
-        
+
         return $activeLeases->sum(function($lease) {
             // Use lease utility_balance if set, otherwise fallback to 0
             return $lease->utility_balance ?? 0;
