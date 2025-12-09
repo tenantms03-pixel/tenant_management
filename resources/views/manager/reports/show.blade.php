@@ -301,6 +301,7 @@
                                 <th>Amount</th>
                                 <th>Date</th>
                                 <th>Unit</th>
+                                <th>Method</th>
                                 <th>Purpose</th>
                                 <th>Status</th>
                                 <th>Action</th>
@@ -349,8 +350,14 @@
                                     <td>{{ $item->pay_date?->format('M d, Y') ?? 'N/A' }}</td>
                                     <td>
                                         {{ $item->lease->unit->type }} <br>
-                                        <span class="text-secondary">{{ $item->lease->unit->room_no }}</span>
+                                        <span class="text-secondary">
+                                            {{ $item->lease->unit->room_no }}
+                                            @if( $item->lease->unit->type === 'Bed-Spacer')
+                                                <small>(Bed No. {{ $item->lease->bed_number}})</small>
+                                            @endif
+                                        </span>
                                     </td>
+                                    <td>{{ $item->pay_method }}</td>
                                     <td>{{ ucfirst($item->payment_for) }}</td>
                                     <td>
                                         <span class="badge

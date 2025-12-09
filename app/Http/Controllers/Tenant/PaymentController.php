@@ -66,10 +66,12 @@ class PaymentController extends Controller
                 ->exists();
 
             // Apply penalty only if past due date AND no payment for this month
-            if ($today->gt($dueDate) && !$paymentThisMonth) {
+            if ($today->gt($dueDate) && !$paymentThisMonth && $lease->penalty_fee == 0) {
                 $penaltyFee = $lease->rent_balance * 0.10; // 10% penalty
-                $lease->penalty_fee = $penaltyFee; // save penalty
+                $lease->penalty_fee = $penaltyFee;
                 $lease->save();
+            } else {
+                $penaltyFee = $lease->penalty_fee; // use existing penalty
             }
 
             // Add rent + penalty to total
