@@ -4,46 +4,46 @@
     <meta charset="utf-8">
     <title>Tenant Report ({{ ucfirst($filter) }})</title>
     <style>
-        body { 
-            font-family: DejaVu Sans, sans-serif; 
-            font-size: 12px; 
-            margin: 20px; 
+        body {
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 12px;
+            margin: 20px;
         }
-        h2 { 
-            text-align: center; 
-            margin-bottom: 5px; 
+        h2 {
+            text-align: center;
+            margin-bottom: 5px;
         }
-        p { 
-            font-size: 11px; 
-            margin-top: 0; 
-            color: #555; 
+        p {
+            font-size: 11px;
+            margin-top: 0;
+            color: #555;
         }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 20px; 
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
         }
-        th, td { 
-            border: 1px solid #ccc; 
-            padding: 6px; 
-            text-align: left; 
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            text-align: left;
         }
-        th { 
-            background-color: #f2f2f2; 
-            font-weight: bold; 
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
             text-align: center;
         }
-        td.status { 
-            font-weight: bold; 
-            text-align: center; 
+        td.status {
+            font-weight: bold;
+            text-align: center;
         }
         .status-approved { background-color: #d4edda; color: #155724; }
         .status-pending { background-color: #fff3cd; color: #856404; }
         .status-rejected { background-color: #f8d7da; color: #721c24; }
-        .no-data { 
-            text-align: center; 
-            color: #777; 
-            font-style: italic; 
+        .no-data {
+            text-align: center;
+            color: #777;
+            font-style: italic;
         }
     </style>
 </head>
@@ -66,15 +66,15 @@
             </thead>
             <tbody>
                 @foreach($tenants as $tenant)
-                    @php 
+                    @php
                         $app = $tenant->tenantApplication;
                         $lease = $tenant->leases->first();
                         $unitType = $app->unit_type ?? 'N/A';
-                        
+
                         // Get room number and bed number from lease if available, otherwise from application
                         $roomNo = $lease->room_no ?? $app->room_no ?? 'N/A';
                         $bedNumber = $lease->bed_number ?? $app->bed_number ?? null;
-                        
+
                         // Format unit type with room number and bed number (if Bed-Spacer)
                         if ($unitType === 'Bed-Spacer' && $bedNumber) {
                             $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;
@@ -83,7 +83,7 @@
                         } else {
                             $unitTypeDisplay = $unitType;
                         }
-                        
+
                         $statusClass = match($tenant->status) {
                             'approved' => 'status-approved',
                             'pending' => 'status-pending',

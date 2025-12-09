@@ -35,11 +35,20 @@
                                 Status: <strong>{{ ucfirst($lease->lea_status) }}</strong>
                             </p>
 
-                            @if(in_array($lease->lea_status, ['active', 'pending']))
+                           @if(in_array($lease->lea_status, ['active', 'pending']))
                                 @if($lease->move_out_requested)
                                     <div class="alert alert-info mb-2 py-2">
                                         <small><i class="bi bi-info-circle"></i> Move out request submitted - pending manager approval</small>
                                     </div>
+
+                                    <!-- Cancel Move Out Button -->
+                                    <button
+                                        class="btn btn-outline-warning btn-sm cancel-moveout-btn"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#cancelMoveOutModal"
+                                        data-lease-id="{{ $lease->id }}">
+                                        <i class="bi bi-x-circle"></i> Cancel Move Out
+                                    </button>
                                 @else
                                     <button
                                         class="btn btn-outline-danger btn-sm request-moveout-btn"
@@ -57,6 +66,30 @@
         </div>
     @endif
 </div>
+
+
+<div class="modal fade" id="cancelMoveOutModal" tabindex="-1" aria-labelledby="cancelMoveOutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" id="cancelMoveOutForm">
+            @csrf
+            @method('PATCH')
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelMoveOutModalLabel">Cancel Move Out</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to cancel your move out request?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                    <button type="submit" class="btn btn-warning">Yes, Cancel Move Out</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 <!-- Move Out Modal -->
 <div class="modal fade" id="moveOutModal" tabindex="-1" aria-labelledby="moveOutModalLabel" aria-hidden="true">
@@ -333,6 +366,23 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBedSelection();
 });
 </script> -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cancelMoveOutModal = document.getElementById('cancelMoveOutModal');
+
+    cancelMoveOutModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const leaseId = button.getAttribute('data-lease-id');
+        const form = document.getElementById('cancelMoveOutForm');
+
+        // Update form action with correct route
+        form.action = "{{ route('tenant.cancelMoveOut', ['leaseId' => ':leaseId']) }}".replace(':leaseId', leaseId);
+    });
+});
+</script>
+
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

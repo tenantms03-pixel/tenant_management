@@ -124,8 +124,15 @@
 
             @if (Route::has('login'))
             <nav class="d-flex gap-2">
+                @php
+                    $user = auth()->user();
+                @endphp
                 @auth
-                    <a href="{{ route('tenant.home') }}" class="btn btn-primary">Dashboard</a>
+                    @if($user->role === 'manager')
+                        <a href="{{ route('manager.dashboard') }}" class="btn btn-primary">Dashboard</a>
+                    @else
+                        <a href="{{ route('tenant.home') }}" class="btn btn-primary">Dashboard</a>
+                    @endif
                 @else
                     <a href="{{ route('login') }}" class="btn btn-primary">Log in</a>
 

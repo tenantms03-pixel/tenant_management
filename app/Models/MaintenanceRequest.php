@@ -12,6 +12,7 @@ class MaintenanceRequest extends Model
    protected $fillable = [
         'tenant_id',
         'lease_id',
+        'unit_id',
         'unit_type',
         'room_no', // still included, optional
         'description',

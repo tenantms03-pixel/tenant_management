@@ -34,17 +34,57 @@ class PaymentController extends Controller
 
         $leasesForSelection = $tenant->leases()
             ->whereIn('lea_status', ['active', 'pending'])
+            ->where('move_out_requested', 0)
             ->with('unit')
             ->get();
 
         // Show Deposit option only if deposit is not fully paid
         $depositExists = ($tenant->deposit_amount ?? 0) > 0;
 
+        $tenantLeases = Lease::where('user_id', $tenant->id)
+            ->where('lea_status', 'active')
+            ->where('move_out_requested', 0)
+            ->get();
+
+        $totalUnpaid = 0;
+
+        foreach ($tenantLeases as $lease) {
+            $today = Carbon::today();
+            $leaseStart = Carbon::parse($lease->lea_start_date);
+
+            // Determine the current month's due date
+            $monthsPassed = $leaseStart->diffInMonths($today);
+            $dueDate = $leaseStart->copy()->addMonths($monthsPassed);
+
+            $penaltyFee = 0;
+
+            // Check if there is a payment for the current month
+            $paymentThisMonth = $lease->payments()
+                ->whereYear('pay_date', $today->year)
+                ->whereMonth('pay_date', $today->month)
+                ->where('pay_status', 'Accepted')
+                ->exists();
+
+            // Apply penalty only if past due date AND no payment for this month
+            if ($today->gt($dueDate) && !$paymentThisMonth) {
+                $penaltyFee = $lease->rent_balance * 0.10; // 10% penalty
+                $lease->penalty_fee = $penaltyFee; // save penalty
+                $lease->save();
+            }
+
+            // Add rent + penalty to total
+            $totalUnpaid += $lease->rent_balance + $penaltyFee;
+        }
+
         // User balances
-        $unpaidRent = $tenant->rent_balance ?? $tenant->rent_amount;
+        $unpaidRent = $totalUnpaid;
         // Use total utility balance from all active leases
         $unpaidUtilities = $tenant->total_utility_balance;
-        $depositBalance = $tenant->deposit_amount ?? 0;
+        $depositBalance = Lease::where('user_id', $tenant->id)
+            ->where('lea_status', 'active')
+            ->where('move_out_requested', 0)
+            ->sum('deposit_balance');
+
         $userCredit = $tenant-> user_credit ?? 0;
 
         // Load ALL utility proofs with lease and unit relationships (no limits, no filters)
@@ -557,7 +597,7 @@ class PaymentController extends Controller
             'pay_method'  => 'required|string',
             'payment_for' => 'required|string',
             'pay_amount'  => 'required|numeric|min:1',
-            'proof'       => 'nullable|image|mimes:jpg,jpeg,png',
+            'proof'       => 'required|image|mimes:jpg,jpeg,png',
             'account_no'  => 'nullable|string|max:255',
         ]);
 
@@ -579,6 +619,10 @@ class PaymentController extends Controller
         $hasDeposit = ($tenant->deposit_amount > 0) || ($lease->deposit_amount > 0);
         if ($hasDeposit && $request->payment_for !== 'Deposit') {
             return redirect()->back()->with('error', 'You must pay the Deposit first.');
+        }
+
+        if ($lease->penalty_fee > 0 && $request->pay_amount < ($lease->penalty_fee + $lease->rent_balance)) {
+            return redirect()->back()->with('error', "Your payment is overdue! You need to pay the full amount including penalty!");
         }
 
         $pathToProof = $request->hasFile('proof')

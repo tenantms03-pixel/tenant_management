@@ -107,7 +107,7 @@
             $unitType = $tenantApp->unit_type ?? 'N/A';
             $roomNo = $tenantApp->room_no ?? 'N/A';
             $bedNumber = $tenantApp->bed_number ?? null;
-            
+
             // Format unit type with room number and bed number (if Bed-Spacer)
             if ($unitType === 'Bed-Spacer' && $bedNumber) {
                 $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;
@@ -202,7 +202,7 @@
 
     <div class="section">
         <h3 class="section-title">Application Status</h3>
-        <p><b>Status:</b> 
+        <p><b>Status:</b>
             <span class="status {{ $tenant->status }}">
                 {{ ucfirst($tenant->status) }}
             </span>
@@ -214,7 +214,7 @@
 
     <hr>
     <div class="footer">
-        Generated on {{ now()->format('F d, Y') }} | Property Management System
+        Generated on {{ now()->format('F d, Y') }} | Tenant Management System
     </div>
 
 </body>

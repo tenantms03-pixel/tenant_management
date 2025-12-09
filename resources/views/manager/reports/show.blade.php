@@ -13,9 +13,16 @@
 </h5>
 
         {{-- Export / Preview PDF button --}}
-       <a href="{{ route('manager.reports.viewReportPdf', array_merge(['report' => $report], request()->all())) }}"
+       {{-- <a href="{{ route('manager.reports.viewReportPdf', array_merge(['report' => $report], request()->all())) }}"
            target="_blank"
            class="btn btn-danger btn-sm shadow-sm d-flex align-items-center" style="background-color: #01017c; color: white; border: none; padding: 8px 20px;">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Export / Preview PDF
+        </a> --}}
+        <a
+            href="{{ route('manager.reports.viewReportPdf', ['report' => $report]) }}?{{ http_build_query(request()->all()) }}"
+            target="_blank"
+            class="btn btn-danger btn-sm shadow-sm d-flex align-items-center"
+            style="background-color: #01017c; color: white; border: none; padding: 8px 20px;">
             <i class="bi bi-file-earmark-pdf me-1"></i> Export / Preview PDF
         </a>
 
@@ -200,6 +207,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <form method="POST" action="{{ route('manager.payments.store') }}" class="modal-content rounded-4 shadow-lg border-0 p-3">
             @csrf
+            @method('PATCH')
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold">Make a Payment</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -292,6 +300,7 @@
                                 <th>Tenant</th>
                                 <th>Amount</th>
                                 <th>Date</th>
+                                <th>Unit</th>
                                 <th>Purpose</th>
                                 <th>Status</th>
                                 <th>Action</th>
@@ -338,6 +347,10 @@
                                     <td>{{ $item->tenant->name ?? 'N/A' }}</td>
                                     <td><span class="fw-semibold">₱{{ number_format($item->pay_amount, 2) }}</span></td>
                                     <td>{{ $item->pay_date?->format('M d, Y') ?? 'N/A' }}</td>
+                                    <td>
+                                        {{ $item->lease->unit->type }} <br>
+                                        <span class="text-secondary">{{ $item->lease->unit->room_no }}</span>
+                                    </td>
                                     <td>{{ ucfirst($item->payment_for) }}</td>
                                     <td>
                                         <span class="badge
@@ -776,7 +789,7 @@
 
 @push('scripts')
 <!-- Old Script -->
-<!-- <script>
+<script>
 document.addEventListener('DOMContentLoaded', function () {
     const modalImage = document.getElementById('modalIssueImage');
     const imageModal = document.getElementById('viewImageModal');
@@ -870,7 +883,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (imageLoading) imageLoading.style.display = 'none';
     });
 });
-</script> -->
+</script>
 
 
 

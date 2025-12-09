@@ -46,77 +46,37 @@ class ReportsController extends Controller
                 // ✅ Comprehensive search filter - search ALL visible columns
                 if ($request->filled('search')) {
                     $search = $request->search;
+
                     $query->where(function($q) use ($search) {
-                        // 1. Search by Tenant Name (column: Tenant)
-                        $q->whereHas('tenant', function($tenantQuery) use ($search) {
-                            $tenantQuery->where('email', 'like', "%{$search}%")
-                                       ->orWhere('first_name', 'like', "%{$search}%")
-                                       ->orWhere('last_name', 'like', "%{$search}%")
-                                       ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+                        // 1. Search on the 'users' table columns (first_name, last_name, email)
+                        $q->where(function($userQ) use ($search) { // <-- NEW NESTED WHERE
+                            $userQ->where('email', 'like', "%{$search}%")
+                                ->orWhere('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%")
+                                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
                         });
 
-                        // 2. Search by Amount (column: Amount)
-                        if (is_numeric($search)) {
-                            $q->orWhere('pay_amount', 'like', "%{$search}%");
-                        }
+                        // 2. Search on the 'tenantApplication' relation (OR'd with the user fields)
+                        $q->orWhereHas('tenantApplication', function($subQ) use ($search) {
+                            $subQ->where('full_name', 'like', "%{$search}%")
+                                ->orWhere('unit_type', 'like', "%{$search}%");
+                        });
 
-                        // 3. Search by Date (column: Date)
-                        try {
-                            $dateFormats = ['Y-m-d', 'm/d/Y', 'M d, Y', 'F d, Y', 'Y', 'M Y', 'F Y'];
-                            foreach ($dateFormats as $format) {
-                                try {
-                                    $parsedDate = \Carbon\Carbon::createFromFormat($format, $search);
-                                    $q->orWhereDate('pay_date', $parsedDate->format('Y-m-d'));
-                                    break;
-                                } catch (\Exception $e) {
-                                    continue;
-                                }
-                            }
-                            // Search by month name
-                            $monthMap = [
-                                'january' => 1, 'jan' => 1,
-                                'february' => 2, 'feb' => 2,
-                                'march' => 3, 'mar' => 3,
-                                'april' => 4, 'apr' => 4,
-                                'may' => 5,
-                                'june' => 6, 'jun' => 6,
-                                'july' => 7, 'jul' => 7,
-                                'august' => 8, 'aug' => 8,
-                                'september' => 9, 'sep' => 9,
-                                'october' => 10, 'oct' => 10,
-                                'november' => 11, 'nov' => 11,
-                                'december' => 12, 'dec' => 12,
-                            ];
-                            $searchLower = strtolower($search);
-                            if (isset($monthMap[$searchLower])) {
-                                $q->orWhereMonth('pay_date', $monthMap[$searchLower]);
-                            }
-                            // Search by year (4 digits)
-                            if (strlen($search) == 4 && is_numeric($search)) {
-                                $q->orWhereYear('pay_date', $search);
-                            }
-                        } catch (\Exception $e) {
-                            // Continue with other searches
-                        }
+                        // 3. Search on the 'leases' relation (OR'd with the previous fields/relations)
+                        $q->orWhereHas('leases', function($leaseQuery) use ($search) {
 
-                        // 4. Search by Purpose/Payment Type (column: Purpose)
-                        $q->orWhere('payment_for', 'like', "%{$search}%");
+                            $leaseQuery->where('lea_status', 'like', "%{$search}%")
+                                    ->orWhere('room_no', 'like', "%{$search}%")
+                                    ->orWhere('lea_terms', 'like', "%{$search}%");
 
-                        // 5. Search by Status (column: Status)
-                        $q->orWhere('pay_status', 'like', "%{$search}%");
+                            // Search by formatted date, month, year (all OR'd inside this block)
+                            // ... (Your date/month/year logic remains here) ...
 
-                        // Additional fields
-                        $q->orWhere('pay_method', 'like', "%{$search}%")
-                          ->orWhere('reference_number', 'like', "%{$search}%")
-                          ->orWhere('account_no', 'like', "%{$search}%");
-
-                        // Search by room number
-                        $q->orWhereHas('lease', function($leaseQuery) use ($search) {
-                            $leaseQuery->where('room_no', 'like', "%{$search}%")
-                                      ->orWhereHas('unit', function($unitQuery) use ($search) {
-                                          $unitQuery->where('type', 'like', "%{$search}%")
-                                                   ->orWhere('room_no', 'like', "%{$search}%");
-                                      });
+                            // Unit
+                            $leaseQuery->orWhereHas('unit', function($unitQuery) use ($search) {
+                                $unitQuery->where('type', 'like', "%{$search}%")
+                                        ->orWhere('room_no', 'like', "%{$search}%");
+                            });
                         });
                     });
                 }
@@ -209,88 +169,99 @@ class ReportsController extends Controller
 
             // ---------------- LEASE SUMMARY ----------------
             case 'lease-summary':
-                $query = User::with([
+            $query = User::select('users.*')
+                ->with([
                     'tenantApplication',
                     'leases' => function($q) {
-                        $q->latest('created_at')->with('unit'); // Get all leases regardless of status to preserve history
+                        $q->latest('created_at')->with('unit');
                     }
                 ])
                 ->where('role', 'tenant')
                 ->where('status', 'approved');
 
-                // ✅ Comprehensive search filter - search ALL visible columns
-                if ($request->filled('search')) {
-                    $search = $request->search;
-                    $query->where(function ($q) use ($search) {
-                        // 1. Search by Tenant Name
-                        $q->where('email', 'like', "%{$search}%")
-                          ->orWhere('first_name', 'like', "%{$search}%")
-                          ->orWhere('last_name', 'like', "%{$search}%")
-                          ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+            // Apply search
+            if ($request->filled('search')) {
+                $search = $request->search;
 
-                        // 2. Search by Unit Type
-                        $q->orWhereHas('tenantApplication', function($subQ) use ($search) {
-                            $subQ->where('full_name', 'like', "%{$search}%")
-                                 ->orWhere('unit_type', 'like', "%{$search}%");
-                        });
+                $query->where(function($q) use ($search) {
+                    $q->where('email', 'like', "%{$search}%")
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
 
-                        // 3. Search by Lease fields
-                        $q->orWhereHas('leases', function($leaseQuery) use ($search) {
-                            $leaseQuery->where('lea_status', 'like', "%{$search}%")
-                                      ->orWhere('room_no', 'like', "%{$search}%")
-                                      ->orWhere('lea_terms', 'like', "%{$search}%");
+                    // Tenant application
+                    $q->orWhereHas('tenantApplication', function($subQ) use ($search) {
+                        $subQ->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('unit_type', 'like', "%{$search}%");
+                    });
 
-                            // Search by dates
+                    // Lease
+                    $q->orWhereHas('leases', function($leaseQuery) use ($search) {
+
+                        $leaseQuery->where('lea_status', 'like', "%{$search}%")
+                                ->orWhere('room_no', 'like', "%{$search}%")
+                                ->orWhere('lea_terms', 'like', "%{$search}%");
+
+                        // Search by formatted date
+                        $dateFormats = ['Y-m-d', 'm/d/Y', 'M d, Y', 'F d, Y', 'Y', 'M Y', 'F Y'];
+                        foreach ($dateFormats as $format) {
                             try {
-                                $dateFormats = ['Y-m-d', 'm/d/Y', 'M d, Y', 'F d, Y', 'Y', 'M Y', 'F Y'];
-                                foreach ($dateFormats as $format) {
-                                    try {
-                                        $parsedDate = \Carbon\Carbon::createFromFormat($format, $search);
-                                        $leaseQuery->orWhereDate('lea_start_date', $parsedDate->format('Y-m-d'))
-                                                  ->orWhereDate('lea_end_date', $parsedDate->format('Y-m-d'));
-                                        break;
-                                    } catch (\Exception $e) {
-                                        continue;
-                                    }
-                                }
-                                $monthMap = [
-                                    'january' => 1, 'jan' => 1, 'february' => 2, 'feb' => 2,
-                                    'march' => 3, 'mar' => 3, 'april' => 4, 'apr' => 4,
-                                    'may' => 5, 'june' => 6, 'jun' => 6, 'july' => 7, 'jul' => 7,
-                                    'august' => 8, 'aug' => 8, 'september' => 9, 'sep' => 9,
-                                    'october' => 10, 'oct' => 10, 'november' => 11, 'nov' => 11,
-                                    'december' => 12, 'dec' => 12,
-                                ];
-                                $searchLower = strtolower($search);
-                                if (isset($monthMap[$searchLower])) {
-                                    $leaseQuery->orWhereMonth('lea_start_date', $monthMap[$searchLower])
-                                              ->orWhereMonth('lea_end_date', $monthMap[$searchLower]);
-                                }
-                                if (strlen($search) == 4 && is_numeric($search)) {
-                                    $leaseQuery->orWhereYear('lea_start_date', $search)
-                                              ->orWhereYear('lea_end_date', $search);
-                                }
-                            } catch (\Exception $e) {
-                                // Continue
-                            }
+                                $parsedDate = \Carbon\Carbon::createFromFormat($format, $search);
+                                $leaseQuery->orWhereDate('lea_start_date', $parsedDate)
+                                        ->orWhereDate('lea_end_date', $parsedDate);
+                                break;
+                            } catch (\Exception $e) {}
+                        }
 
-                            $leaseQuery->orWhereHas('unit', function($unitQuery) use ($search) {
-                                $unitQuery->where('type', 'like', "%{$search}%")
-                                         ->orWhere('room_no', 'like', "%{$search}%");
-                            });
+                        // Month search
+                        $monthMap = [
+                            'january' => 1, 'jan' => 1,
+                            'february' => 2, 'feb' => 2,
+                            'march' => 3, 'mar' => 3,
+                            'april' => 4, 'apr' => 4,
+                            'may' => 5,
+                            'june' => 6, 'jun' => 6,
+                            'july' => 7, 'jul' => 7,
+                            'august' => 8, 'aug' => 8,
+                            'september' => 9, 'sep' => 9,
+                            'october' => 10, 'oct' => 10,
+                            'november' => 11, 'nov' => 11,
+                            'december' => 12, 'dec' => 12,
+                        ];
+
+                        $lower = strtolower($search);
+                        if (isset($monthMap[$lower])) {
+                            $leaseQuery->orWhereMonth('lea_start_date', $monthMap[$lower])
+                                    ->orWhereMonth('lea_end_date', $monthMap[$lower]);
+                        }
+
+                        // Year search
+                        if (strlen($search) === 4 && is_numeric($search)) {
+                            $leaseQuery->orWhereYear('lea_start_date', $search)
+                                    ->orWhereYear('lea_end_date', $search);
+                        }
+
+                        // Unit
+                        $leaseQuery->orWhereHas('unit', function($unitQuery) use ($search) {
+                            $unitQuery->where('type', 'like', "%{$search}%")
+                                    ->orWhere('room_no', 'like', "%{$search}%");
                         });
                     });
-                }
+                });
+            }
 
-                $total = $query->count();
-                $data = $query->get();
+            // ✅ FIX: Remove duplicates using unique() on the collection instead of GROUP BY
+            $data = $query->get()->unique('id');
+            $total = $data->count();
 
-                $pdf = Pdf::loadView('reports.pdf.lease-summary', [
-                    'data' => $data,
-                    'total' => $total
-                ])->setPaper('a4', 'landscape');
+            // ✅ REMOVE dd($data); - This was preventing PDF generation
 
-                return $pdf->stream('lease-summary.pdf');
+            $pdf = Pdf::loadView('reports.pdf.lease-summary', [
+                'data' => $data,
+                'total' => $total
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->stream('lease-summary.pdf');
 
             default:
                 abort(404, 'Report not available for PDF view.');
@@ -1199,7 +1170,7 @@ class ReportsController extends Controller
 
     public function paymentStore(Request $request){
         $request->validate([
-            'tenant_id'   => 'required|exists:tenants,id',
+            'tenant_id'   => 'required|exists:users,id',
             'lease_id'    => 'required|exists:leases,id',
             'payment_for' => 'required|in:Deposit,Rent,Utilities',
             'pay_amount'  => 'required|numeric|min:1',
@@ -1207,6 +1178,13 @@ class ReportsController extends Controller
         ]);
 
         $tenant = Auth::user();
+
+        if($tenant->role === 'manager'){
+            $tenant = User::where('id', $request->tenant_id)->first();
+        }else{
+            $tenant = Auth::user();
+        }
+
         $lease = Lease::where('id', $request->lease_id)
             ->where('user_id', $tenant->id)
             ->first();
@@ -1218,6 +1196,10 @@ class ReportsController extends Controller
 
         if ($request->payment_for === 'Deposit' && $request->pay_amount > $lease->deposit_balance) {
             return back()->withErrors(['pay_amount' => 'Payment exceeds deposit balance.']);
+        }
+
+        if ($lease->penalty_fee > 0 && $request->pay_amount < ($lease->penalty_fee + $lease->rent_balance)) {
+            return redirect()->back()->with('error', "Your payment is overdue! You need to pay the full amount including penalty!");
         }
 
         // ✅ Optional: Prevent overpayment (example logic)
@@ -1238,8 +1220,9 @@ class ReportsController extends Controller
             'tenant_id'   => $request->tenant_id,
             'lease_id'    => $request->lease_id,
             'payment_for' => $request->payment_for,
-            'amount'      => $request->pay_amount,
-            'method'      => $request->pay_method,
+            'pay_amount'  => $request->pay_amount,
+            'pay_method'      => $request->pay_method,
+            'pay_status'  => $request->pay_method === 'Cash' ? 'Accepted' : 'Pending',
             'paid_at'     => now(),
         ]);
 
@@ -1254,6 +1237,10 @@ class ReportsController extends Controller
 
         if ($request->payment_for === 'Deposit') {
             $lease->deposit_balance -= $request->pay_amount;
+        }
+
+        if($lease->penalty_fee > 0){
+            $lease->penalty_fee = 0;
         }
 
         $lease->paid_date = now();

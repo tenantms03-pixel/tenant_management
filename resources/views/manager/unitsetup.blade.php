@@ -197,7 +197,9 @@
               <td><span class="fw-bold">{{ $unit->room_no }}</span></td>
               <td><span class="text-success fw-semibold">₱{{ number_format($unit->room_price, 2) }}</span></td>
               <td class="text-center">{{ $unit->no_of_occupants }}/{{ $unit->capacity }}</td>
-              <td class="text-center">{{ count($unit->leases) ?? 0}}/{{ $unit->application_limit }}</td>
+              <td class="text-center">
+                {{ $unit->leases->filter(fn($lease) => strtolower($lease->lea_status) === 'pending')->count() }}/{{ $unit->application_limit }}
+            </td>
               <td class="text-center">
                 <span class="badge {{ $unit->status == 'vacant' ? 'bg-success' : 'bg-danger' }}">
                   {{ ucfirst($unit->status) }}
@@ -210,7 +212,7 @@
                     data-bs-toggle="modal"
                     data-bs-target="#editUnitModal{{ $unit->id }}"
                     title="Edit Unit"
-                    {{ $unit->status === 'occupied' ? 'disabled' : '' }}
+                    {{ $unit->status === 'occupied' || $unit->status === 'maintenance' ? 'disabled' : '' }}
                 >
                     <i class="bi bi-pencil-square"></i>
                 </button>
@@ -221,7 +223,7 @@
                     data-bs-toggle="modal"
                     data-bs-target="#deleteUnitModal{{ $unit->id }}"
                     title="Delete Unit"
-                    {{ $unit->status === 'occupied' ? 'disabled' : '' }}
+                    {{ $unit->status === 'occupied' || $unit->status === 'maintenance' ? 'disabled' : '' }}
                 >
                     <i class="bi bi-trash3-fill"></i>
                 </button>
@@ -386,7 +388,7 @@
 
 
 <!-- Lease Applications Modal -->
-<div class="modal fade" id="leaseApplicationsModal" tabindex="-1" aria-hidden="true">
+{{-- <div class="modal fade" id="leaseApplicationsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content shadow-lg border-0 rounded-4">
 
@@ -458,6 +460,115 @@
                                                     @csrf
                                                     <button type="submit"
                                                             class="btn btn-danger btn-sm px-3 rounded-pill">
+                                                        <i class="bi bi-x-circle me-1"></i> Reject
+                                                    </button>
+                                                </form>
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+
+                        </table>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer bg-light rounded-bottom-4">
+                <button class="btn btn-secondary px-4 rounded-pill" style="border: 2px solid #01017c; color: #01017c; background: transparent;" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div> --}}
+
+<div class="modal fade" id="leaseApplicationsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+
+            <!-- Header -->
+            <div class="modal-header text-white py-3 rounded-top-4" style="background-color: #01017c; color: white; border: none; padding: 8px 20px;">
+                <h5 class="modal-title d-flex align-items-center">
+                    <i class="bi bi-file-earmark-text me-2 fs-4"></i>
+                  View Additional Units
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body p-4">
+
+                @if($pendingLeases->isEmpty())
+                    <div class="alert alert-info text-center py-4 rounded-3">
+                        <i class="bi bi-info-circle fs-5 me-2"></i>
+                        No pending lease applications at the moment.
+                    </div>
+
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>Unit Number</th>
+                                    <th>Unit Type</th>
+                                    <th>Room No</th>
+                                    <th>Price</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach($pendingLeases as $lease)
+                                    <tr>
+                                        <td class="fw-semibold">{{ $lease->tenant->name }}</td>
+                                        <td>{{ $lease->unit_id }}</td>
+                                        <td>{{ $lease->unit->type }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary px-3 py-2 rounded-3">
+                                                {{ $lease->unit->room_no }}
+                                            </span>
+                                        </td>
+                                        <td>₱{{ number_format($lease->unit->room_price, 2) }}</td>
+                                        <td>{{ $lease->lea_start_date ? \Carbon\Carbon::parse($lease->lea_start_date)->format('M d, Y') : 'TBD' }}</td>
+                                        <td>{{ $lease->lea_end_date ? \Carbon\Carbon::parse($lease->lea_end_date)->format('M d, Y') : 'TBD' }}</td>
+
+                                        <!-- Actions -->
+                                        <td class="text-center">
+                                            <div class="d-flex justify-content-center gap-2">
+
+                                                <!-- Check if unit is occupied -->
+                                                @if($lease->unit->status === 'occupied')
+                                                    <!-- Disabled Occupied Button -->
+                                                    <button type="button"
+                                                            class="btn btn-secondary btn-sm px-3 rounded-pill"
+                                                            disabled>
+                                                        <i class="bi bi-lock-fill me-1"></i> Occupied
+                                                    </button>
+                                                @else
+                                                    <!-- Approve Button (Active) -->
+                                                    <form action="{{ route('manager.approve-unit', ['user' => $lease->user_id, 'unit' => $lease->unit_id, 'lease' => $lease->id]) }}" method="POST">
+                                                        @csrf
+                                                        <button type="submit"
+                                                                class="btn btn-success btn-sm px-3 rounded-pill"
+                                                                onclick="return confirm('Approve this application?')">
+                                                            <i class="bi bi-check-circle me-1"></i> Approve
+                                                        </button>
+                                                    </form>
+                                                @endif
+
+                                                <!-- Reject Button (Always Active) -->
+                                                <form action="{{ route('manager.reject-unit', [$lease->tenant->id, $lease->unit->id, $lease->id]) }}" method="POST">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="btn btn-danger btn-sm px-3 rounded-pill"
+                                                            onclick="return confirm('Reject this application?')">
                                                         <i class="bi bi-x-circle me-1"></i> Reject
                                                     </button>
                                                 </form>

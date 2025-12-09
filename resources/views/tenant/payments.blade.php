@@ -28,12 +28,12 @@
 
                         @php
                             $user = auth()->user();
-                            $hasDeposit = $user->deposit_amount > 0;
+                            $hasDeposit = $depositBalance > 0;
                         @endphp
 
                         @if($hasDeposit)
                             <h6 class="fw-semibold">Pending Deposit</h6>
-                            <h3 class="fw-bold mb-0">₱{{ number_format($user->deposit_amount, 2) }}</h3>
+                            <h3 class="fw-bold mb-0">₱{{ number_format($depositBalance, 2) }}</h3>
                         @else
                             <h6 class="fw-semibold">Unpaid Rent ({{ $unpaidRentMonth }})</h6>
                             <h3 class="fw-bold mb-0">₱{{ number_format($unpaidRent, 2) }}</h3>
@@ -230,7 +230,7 @@
                 <div class="form-floating mb-3">
                     <select name="pay_method" id="payment_method" class="form-select" required disabled>
                         <option value="">Select Method</option>
-                        <option value="Cash">Cash</option>
+                        {{-- <option value="Cash">Cash</option> --}}
                         <option value="GCash">GCash</option>
                         <option value="Bank Transfer">Bank Transfer</option>
                     </select>

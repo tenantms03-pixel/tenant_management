@@ -120,5 +120,26 @@ class LeaseController extends Controller
         return redirect()->back()->with('success', 'Unit application submitted successfully!');
     }
 
+    public function cancelMoveOut($leaseId)
+    {
+        $tenant = auth()->user();
+
+        $lease = Lease::where('id', $leaseId)
+                ->where('user_id', $tenant->id)
+                ->where('move_out_requested', 1)
+                ->first();
+
+        // Add null check
+        if (!$lease) {
+            return redirect()->back()->with('error', 'Lease not found or you do not have permission to cancel this move out request.');
+        }
+
+        $lease->update([
+            'move_out_requested' => 0,
+        ]);
+
+        return redirect()->back()->with('success', 'Move out has been cancelled successfully!');
+    }
+
 
 }

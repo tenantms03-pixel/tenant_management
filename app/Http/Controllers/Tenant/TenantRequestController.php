@@ -55,6 +55,7 @@ class TenantRequestController extends Controller
         \App\Models\MaintenanceRequest::create([
             'tenant_id'     => Auth::id(),
             'lease_id'      => $lease->id,
+            'unit_id'      =>  $lease->unit_id,
             'unit_type'     => $lease->unit->type ?? 'Unit',
             'room_no'       => $lease->room_no,
             'description'   => $request->description,
