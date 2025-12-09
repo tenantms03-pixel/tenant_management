@@ -618,7 +618,7 @@ class PaymentController extends Controller
         }
 
         // Force Deposit payment first - check both user-level and lease-level deposit
-        $hasDeposit = ($tenant->deposit_amount > 0) || ($lease->deposit_amount > 0);
+        $hasDeposit = $lease->deposit_balance > 0 || ($lease->deposit_amount > 0);
         if ($hasDeposit && $request->payment_for !== 'Deposit') {
             return redirect()->back()->with('error', 'You must pay the Deposit first.');
         }
