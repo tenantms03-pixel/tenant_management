@@ -58,7 +58,7 @@
                     <div class="card-body text-center">
                         <h4 class="card-title fw-bold">{{ $type }}</h4>
                         @if($isFull)
-                            <span class="badge bg-danger mb-3">FULL</span>
+                            <span class="badge bg-danger mb-3">Application is Full</span>
                         @else
                             <span class="badge bg-success mb-3">Vacant</span>
                         @endif

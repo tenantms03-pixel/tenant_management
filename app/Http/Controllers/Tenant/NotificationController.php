@@ -11,6 +11,7 @@ class NotificationController extends Controller
     public function index()
     {
         $userId = Auth::id();
+        $user = Auth::user();
 
         // Fetch latest notifications (newest first)
         $notifications = Notification::where('user_id', $userId)
@@ -22,7 +23,11 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
-        return view('tenant.notifications', compact('notifications'));
+        if($user->role === 'manager'){
+            return view('manager.admin-notification', compact('notifications'));
+        }else{
+            return view('tenant.notifications', compact('notifications'));
+        }
     }
 
 }

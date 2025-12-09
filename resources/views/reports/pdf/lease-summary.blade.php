@@ -47,11 +47,11 @@
                         'terminated' => 'terminated',
                         default => 'pending',
                     };
-                    
+
                     $unitType = $app->unit_type ?? 'N/A';
                     $roomNo = $lease->room_no ?? 'N/A';
                     $bedNumber = $lease->bed_number ?? null;
-                    
+
                     // Format unit type with room number and bed number (if Bed-Spacer)
                     if ($unitType === 'Bed-Spacer' && $bedNumber) {
                         $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;

@@ -146,7 +146,8 @@ class ManagerController extends Controller
         $rejectedTenantList = User::where('role', 'tenant')->where('status', 'rejected')->get();
 
         // Filtered results for card display (now includes search)
-        $filteredTenants = $query->orderByRaw("CONCAT(first_name, ' ', last_name) ASC")->get();
+        // $filteredTenants = $query->orderByRaw("CONCAT(first_name, ' ', last_name) ASC")->get();
+        $filteredTenants = $query->orderBy("created_at", 'desc')->get();
 
         return view('manager.tenants', compact(
             'pendingTenants',

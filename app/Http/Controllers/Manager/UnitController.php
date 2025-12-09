@@ -196,7 +196,7 @@ public function approveAdditionalUnit($userId, $unitId, $leaseId)
             'bed_number'     => $lease->bed_number ? $lease->bed_number : $tenantApp->bed_number ?? null,
             'deposit_balance' => $depositAmount,
             'rent_balance' => $monthlyRent,
-            'utility_balance' => ($lease->utility_balance ?? 0 ) + $monthlyRent,
+            'utility_balance' => ($lease->utility_balance ?? 0 ) + $monthlyUtilities,
         ]);
     } else {
         Lease::create([
@@ -210,7 +210,7 @@ public function approveAdditionalUnit($userId, $unitId, $leaseId)
             'bed_number'     => $tenantApp->bed_number ?? null,
             'deposit_balance' => $depositAmount,
             'rent_balance' => $monthlyRent,
-            'utility_balance' => ($lease->utility_balance ?? 0 ) + $monthlyRent,
+            'utility_balance' => ($lease->utility_balance ?? 0 ) + $monthlyUtilities,
         ]);
     }
 
@@ -239,6 +239,8 @@ public function rejectAdditionalUnit($userId, $unitId, $leaseId)
         return redirect()->back()->with('error', 'Lease not found for this unit.');
     }
 
+    $isPending = $lease->lea_status === 'pending' ? true : false;
+
     // Update lease status to rejected
     $lease->update([
         'lea_status' => 'rejected'
@@ -256,7 +258,9 @@ public function rejectAdditionalUnit($userId, $unitId, $leaseId)
         }
     } else {
         // Other unit types are fully occupied
-        $unit->status = 'vacant';
+        if(!$isPending){
+            $unit->status = 'vacant';
+        }
     }
     $unit->save();
 

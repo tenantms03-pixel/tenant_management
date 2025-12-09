@@ -140,6 +140,13 @@
 </head>
 <body>
 
+    @php
+        use App\Models\Notification;
+        $hasUnreadNotifications = Notification::where('user_id', auth()->id())
+            ->where('is_read', false)
+            ->count();
+    @endphp
+
     <!-- Toggle Button -->
     <button class="toggle-btn" id="toggle-btn">
         <i class="bi bi-list" style="font-size: 1.5rem;"></i>
@@ -180,6 +187,13 @@
             <li class="nav-item mb-3">
                 <a class="nav-link {{ request()->routeIs('manager.utilities.*') ? 'active' : '' }}" href="{{ route('manager.utilities.index') }}">
                     <i class="bi bi-lightning-charge-fill"></i> <span>Utilities</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('tenant.notifications') ? 'active' : '' }} {{ $hasUnreadNotifications > 0 ? 'fw-bold text-warning' : '' }}"
+                href="{{ route('tenant.notifications') }}">
+                    <i class="bi bi-bell me-2"></i> Notifications
                 </a>
             </li>
 

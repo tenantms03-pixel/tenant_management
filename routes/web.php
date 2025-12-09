@@ -164,6 +164,7 @@ Route::middleware(['auth', 'manager'])->group(function () {
         $leases = \App\Models\Lease::with('unit', 'tenant')
             ->where('user_id', $tenantId)
             ->whereIn('lea_status', ['active', 'pending'])
+            ->where('move_out_requested', 0)
             ->get()
             ->map(function ($lease) {
                 return [
@@ -178,7 +179,6 @@ Route::middleware(['auth', 'manager'])->group(function () {
 
         return response()->json($leases);
     });
-
 
     // Requests
     Route::patch('/manager/requests/{id}/status', [MaintenanceRequestController::class, 'updateStatus'])->name('manager.requests.updateStatus');
@@ -212,8 +212,6 @@ Route::middleware(['auth', 'manager'])->group(function () {
     Route::post('/manager/reject-unit/{user}/{unit}/{lease}', [UnitController::class, 'rejectAdditionalUnit'])
         ->name('manager.reject-unit');
 
-
-
     Route::get('/manager/units/{unit}/edit', [UnitController::class, 'edit'])->name('manager.units.edit');
     Route::put('/manager/units/{unit}', [UnitController::class, 'update'])->name('manager.units.update');
     Route::delete('/manager/units/{unit}', [UnitController::class, 'destroy'])->name('manager.units.destroy');
@@ -232,6 +230,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('tenant.application');
     Route::post('/tenant/application/submit', [TenantApplicationController::class, 'submit'])
         ->name('tenant.application.submit');
+    Route::patch('/tenant/cancel-move-out/{leaseId}', [LeaseController::class, 'cancelMoveOut'])->name('tenant.cancelMoveOut');
+
 });
 
 // Tenant dashboard/routes
