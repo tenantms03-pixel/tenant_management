@@ -66,10 +66,12 @@ class PaymentController extends Controller
                 ->exists();
 
             // Apply penalty only if past due date AND no payment for this month
-            if ($today->gt($dueDate) && !$paymentThisMonth) {
+            if ($today->gt($dueDate) && !$paymentThisMonth && $lease->penalty_fee == 0) {
                 $penaltyFee = $lease->rent_balance * 0.10; // 10% penalty
-                $lease->penalty_fee = $penaltyFee; // save penalty
+                $lease->penalty_fee = $penaltyFee;
                 $lease->save();
+            } else {
+                $penaltyFee = $lease->penalty_fee; // use existing penalty
             }
 
             // Add rent + penalty to total
@@ -616,7 +618,7 @@ class PaymentController extends Controller
         }
 
         // Force Deposit payment first - check both user-level and lease-level deposit
-        $hasDeposit = ($tenant->deposit_amount > 0) || ($lease->deposit_amount > 0);
+        $hasDeposit = $lease->deposit_balance > 0 || ($lease->deposit_amount > 0);
         if ($hasDeposit && $request->payment_for !== 'Deposit') {
             return redirect()->back()->with('error', 'You must pay the Deposit first.');
         }
