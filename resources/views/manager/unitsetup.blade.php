@@ -130,11 +130,6 @@
   .btn-danger {
     box-shadow: 0 2px 8px rgb(220 53 69 / 0.5);
   }
-  .btn-danger:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
 
   /* Modal styling stays mostly same, except minor tweaks for rounding if needed */
   .modal-content {
@@ -189,6 +184,7 @@
               <th>Room No</th>
               <th>Room Price</th>
               <th>Capacity</th>
+              <th>Application Limit</th>
               <th>Status</th>
               <th class="text-center">Actions</th>
             </tr>
@@ -200,23 +196,36 @@
               <td><span class="fw-semibold">{{ $unit->type }}</span></td>
               <td><span class="fw-bold">{{ $unit->room_no }}</span></td>
               <td><span class="text-success fw-semibold">₱{{ number_format($unit->room_price, 2) }}</span></td>
-              <td class="text-center">{{ $unit->capacity }}</td>
+              <td class="text-center">{{ $unit->no_of_occupants }}/{{ $unit->capacity }}</td>
+              <td class="text-center">{{ count($unit->leases) ?? 0}}/{{ $unit->application_limit }}</td>
               <td class="text-center">
                 <span class="badge {{ $unit->status == 'vacant' ? 'bg-success' : 'bg-danger' }}">
                   {{ ucfirst($unit->status) }}
                 </span>
               </td>
               <td class="text-center">
-                <button type="button" class="btn btn-sm btn-warning me-1" data-bs-toggle="modal" data-bs-target="#editUnitModal{{ $unit->id }}" title="Edit Unit">
-                  <i class="bi bi-pencil-square"></i>
+                <button
+                    type="button"
+                    class="btn btn-sm btn-warning me-1"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editUnitModal{{ $unit->id }}"
+                    title="Edit Unit"
+                    {{ $unit->status === 'occupied' ? 'disabled' : '' }}
+                >
+                    <i class="bi bi-pencil-square"></i>
                 </button>
-                <button type="button" class="btn btn-sm btn-danger" 
-                        @if($unit->status == 'occupied') disabled @endif
-                        data-bs-toggle="modal" data-bs-target="#deleteUnitModal{{ $unit->id }}" 
-                        title="{{ $unit->status == 'occupied' ? 'Cannot delete occupied unit' : 'Delete Unit' }}">
-                  <i class="bi bi-trash3-fill"></i>
+
+                <button
+                    type="button"
+                    class="btn btn-sm btn-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteUnitModal{{ $unit->id }}"
+                    title="Delete Unit"
+                    {{ $unit->status === 'occupied' ? 'disabled' : '' }}
+                >
+                    <i class="bi bi-trash3-fill"></i>
                 </button>
-              </td>
+            </td>
             </tr>
             @empty
             <tr>
@@ -264,6 +273,10 @@
                         <input type="number" name="capacity" class="form-control" min="1" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Application Limit</label>
+                        <input type="number" name="application_limit" class="form-control" min="1" required>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Status</label>
                         <select name="status" class="form-select">
                             <option value="vacant">Vacant</option>
@@ -272,18 +285,17 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-    <button class="btn btn-light" 
-           style="border: 2px solid #01017c; color: #01017c; background: transparent;" 
-            data-bs-dismiss="modal">
-        Cancel
-    </button>
-    <button type="submit"
-            class="btn text-white"
-            style="background-color: #01017c; color: white; border: none; padding: 8px 20px;">
-        Save Unit
-    </button>
-</div>
-
+                <button class="btn btn-light"
+                      style="border: 2px solid #01017c; color: #01017c; background: transparent;"
+                        data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="btn text-white"
+                        style="background-color: #01017c; color: white; border: none; padding: 8px 20px;">
+                    Save Unit
+                </button>
+            </div>
             </div>
         </form>
     </div>
@@ -322,6 +334,10 @@
                             <input type="number" name="capacity" class="form-control" min="1" value="{{ $unit->capacity }}" required>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">Application Limit</label>
+                            <input type="number" name="application_limit" class="form-control" min="1" value="{{ $unit->application_limit }}" required>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">Status</label>
                             <select name="status" class="form-select">
                                 <option value="vacant" {{ $unit->status == 'vacant' ? 'selected' : '' }}>Vacant</option>
@@ -352,23 +368,16 @@
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        @if($unit->status == 'occupied')
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                This unit is currently occupied and cannot be deleted.
-                            </div>
-                        @else
-                            <p class="mb-0">Are you sure you want to delete this unit?</p>
-                        @endif
+                        <p class="mb-0">Are you sure you want to delete this unit?</p>
                         <p class="fw-bold text-danger">Room No: {{ $unit->room_no }}</p>
                     </div>
                     <div class="modal-footer">
-                            <button type="button" class="btn btn-light" 
-                                    style="border: 2px solid #01017c; color: #01017c; background: transparent;" 
+                            <button type="button" class="btn btn-light"
+                                    style="border: 2px solid #01017c; color: #01017c; background: transparent;"
                                     data-bs-dismiss="modal">
                                 Cancel
                             </button>
-                        <button type="submit" class="btn btn-danger" @if($unit->status == 'occupied') disabled @endif>Yes, Delete</button>
+                        <button type="submit" class="btn btn-danger">Yes, Delete</button>
                     </div>
                 </div>
             </form>
@@ -405,6 +414,7 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th>Tenant</th>
+                                    <th>Unit Number</th>
                                     <th>Unit Type</th>
                                     <th>Room No</th>
                                     <th>Price</th>
@@ -418,6 +428,7 @@
                                 @foreach($pendingLeases as $lease)
                                     <tr>
                                         <td class="fw-semibold">{{ $lease->tenant->name }}</td>
+                                        <td>{{ $lease->unit_id }}</td>
                                         <td>{{ $lease->unit->type }}</td>
                                         <td>
                                             <span class="badge bg-secondary px-3 py-2 rounded-3">
@@ -425,8 +436,8 @@
                                             </span>
                                         </td>
                                         <td>₱{{ number_format($lease->unit->room_price, 2) }}</td>
-                                        <td>{{ $lease->lea_start_date ?? 'TBD' }}</td>
-                                        <td>{{ $lease->lea_end_date ?? 'TBD' }}</td>
+                                        <td>{{ $lease->lea_start_date ? \Carbon\Carbon::parse($lease->lea_start_date)->format('M d, Y') : 'TBD' }}</td>
+                                        <td>{{ $lease->lea_end_date ? \Carbon\Carbon::parse($lease->lea_end_date)->format('M d, Y') : 'TBD' }}</td>
 
                                         <!-- Actions -->
                                         <td class="text-center">

@@ -4,84 +4,24 @@
     <meta charset="utf-8">
     <title>Maintenance Requests Report</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: DejaVu Sans, sans-serif; 
-            font-size: 11px; 
-            color: #333;
-            padding: 20px;
-            line-height: 1.4;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #2563eb;
-        }
-        .header h1 {
-            font-size: 20px;
-            color: #1e40af;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        .header p {
-            font-size: 10px;
-            color: #666;
-            margin-top: 5px;
-        }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 20px;
-            font-size: 10px;
-        }
-        th, td { 
-            border: 1px solid #e5e7eb; 
-            padding: 8px 6px; 
-            text-align: center;
-            vertical-align: top;
-        }
-        th { 
-            background-color: #2563eb;
-            color: #ffffff;
-            font-weight: bold;
-            font-size: 10px;
-        }
-        tr:nth-child(even) {
-            background-color: #f9fafb;
-        }
-        tr:hover {
-            background-color: #f3f4f6;
-        }
-        .badge { 
-            padding: 4px 8px; 
-            border-radius: 4px; 
-            color: #fff; 
-            font-size: 9px;
-            font-weight: bold;
-            display: inline-block;
-        }
-        .high { background-color: #ef4444; }
-        .mid { background-color: #f59e0b; }
-        .low { background-color: #10b981; }
-        .pending { background-color: #6b7280; }
-        .accepted { background-color: #10b981; }
-        .rejected { background-color: #ef4444; }
-        .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #e5e7eb;
-            text-align: center;
-            font-size: 9px;
-            color: #6b7280;
-        }
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
+        h2 { text-align: center; margin-bottom: 20px; color: #b38f00; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #fff3cd; color: #856404; }
+        tr:nth-child(even) { background-color: #fffbea; }
+        .badge { padding: 3px 6px; border-radius: 6px; color: #fff; }
+        .high { background-color: #dc3545; }
+        .mid { background-color: #ffc107; color: #212529; }
+        .low { background-color: #28a745; }
+        .pending { background-color: #6c757d; }
+        .accepted { background-color: #28a745; }
+        .rejected { background-color: #dc3545; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Maintenance Requests Report</h1>
-        <p><strong>Generated:</strong> {{ now()->format('F d, Y \a\t h:i A') }}</p>
-    </div>
+    <h2>Maintenance Requests Report</h2>
+    <p><strong>Generated:</strong> {{ now()->format('Y-m-d H:i:s') }}</p>
 
     <table>
         <thead>
@@ -145,9 +85,5 @@
             @endforeach
         </tbody>
     </table>
-    
-    <div class="footer">
-        <p>Property Management System | Generated on {{ now()->format('F d, Y') }}</p>
-    </div>
 </body>
 </html>

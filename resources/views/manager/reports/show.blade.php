@@ -4,7 +4,7 @@
 @section('page-title',)
 
 @section('content')
-<div class="content px-1"> 
+<div class="content px-1">
 
     {{-- ---------------- PAGE HEADER ---------------- --}}
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -143,16 +143,31 @@
 
                 {{-- Export Button (Optional, visible for relevant reports) --}}
                 @if(in_array($report, ['payment-history', 'maintenance-requests', 'lease-summary', 'active-tenants']))
-                    <div class="col-md-auto ms-auto">
+                    <div class="col-md-auto ms-auto d-flex align-items-center gap-2">
+
+                        {{-- ✅ MAKE PAYMENT (ONLY FOR PAYMENT HISTORY) --}}
+                        @if($report === 'payment-history')
+                            <button type="button"
+                                class="btn btn-success btn-sm d-flex align-items-center gap-2 rounded-pill shadow-sm px-3 py-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#makePaymentModal">
+                                <i class="bi bi-cash-coin fs-6"></i>
+                                <span class="fw-semibold">Make Payment</span>
+                            </button>
+                        @endif
+
+                        {{-- ✅ EXPORT PDF --}}
                         <a href="{{ route('manager.reports.export', ['report' => $report, 'search' => request('search')]) }}"
                             target="_blank"
-                            class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2 rounded-pill shadow-sm px-3 py-2"  
+                            class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2 rounded-pill shadow-sm px-3 py-2"
                             style="border: 2px solid #01017c; color: #01017c; background: transparent;">
                             <i class="bi bi-file-earmark-pdf-fill fs-6"></i>
                             <span class="fw-semibold">Export PDF</span>
                         </a>
+
                     </div>
                 @endif
+
             </form>
         </div>
     </div>
@@ -179,6 +194,90 @@
         }
     </style>
     @endif
+
+
+    <div class="modal fade" id="makePaymentModal" tabindex="-1" aria-labelledby="makePaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ route('manager.payments.store') }}" class="modal-content rounded-4 shadow-lg border-0 p-3">
+            @csrf
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Make a Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body pt-0">
+
+                {{-- SELECT TENANT --}}
+                <div class="form-floating mb-3">
+                    <select name="tenant_id" id="tenant_id" class="form-select" required>
+                        <option value="">Select Tenant</option>
+                        @foreach($tenantsForPayment as $tenant)
+                            <option value="{{ $tenant->id }}">{{ $tenant->name }}</option>
+                        @endforeach
+                    </select>
+                    <label>Select Tenant</label>
+                </div>
+
+                {{-- SELECT ROOM / LEASE --}}
+                <div class="form-floating mb-3">
+                    <select name="lease_id" id="lease_id" class="form-select" required disabled>
+                        <option value="">Select Room / Unit</option>
+                    </select>
+                    <label>Room / Unit</label>
+                </div>
+
+                {{-- PAYMENT FOR --}}
+                <div class="form-floating mb-3">
+                <select name="payment_for" id="payment_for" class="form-select" required disabled>
+                    <option value="">Select Payment Type</option>
+
+                    {{-- ✅ Deposit --}}
+                    <option id="depositOption" value="Deposit" data-balance="0" class="d-none">
+                        Deposit
+                    </option>
+
+                    {{-- ✅ Rent --}}
+                    <option value="Rent" data-balance="0" data-lease-specific="true">
+                        Rent (Select unit first)
+                    </option>
+
+                    {{-- ✅ Utilities --}}
+                    <option value="Utilities" data-balance="0" data-lease-specific="true">
+                        Utilities (Select unit first)
+                    </option>
+                </select>
+                <label for="payment_for">Payment For</label>
+            </div>
+
+
+                {{-- AMOUNT --}}
+                <div class="form-floating mb-3">
+                    <input type="number" name="pay_amount" id="pay_amount" class="form-control" required disabled>
+                    <label>Amount</label>
+                </div>
+
+                {{-- PAYMENT METHOD --}}
+                <div class="form-floating mb-3">
+                    <select name="pay_method" class="form-select" readonly>
+                        <option value="Cash" selected>Cash</option>
+                    </select>
+                    <label>Payment Method</label>
+                </div>
+
+            </div>
+
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-sm text-white" style="background-color:#01017c;">
+                    + Submit Payment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 
     {{-- ---------------- DATA TABLE ---------------- --}}
@@ -211,6 +310,7 @@
                         @elseif($report === 'lease-summary')
                             <tr>
                                 <th>Tenant</th>
+                                <th>Unit Number</th>
                                 <th>Unit Type</th>
                                 <th>Lease Start</th>
                                 <th>Lease End</th>
@@ -240,14 +340,25 @@
                                     <td>{{ $item->pay_date?->format('M d, Y') ?? 'N/A' }}</td>
                                     <td>{{ ucfirst($item->payment_for) }}</td>
                                     <td>
-                                        <form action="{{ route('manager.payments.updateStatus', $item->id) }}" method="POST">
+                                        <span class="badge
+                                            @if($item->pay_status === 'Accepted')
+                                                bg-success
+                                            @elseif($item->pay_status === 'Rejected')
+                                                bg-danger
+                                            @else
+                                                bg-warning text-dark
+                                            @endif
+                                        ">
+                                            {{ $item->pay_status }}
+                                        </span>
+                                        <!-- <form action="{{ route('manager.payments.updateStatus', $item->id) }}" method="POST">
                                             @csrf
                                             @method('PATCH')
                                             <select name="pay_status" class="form-select form-select-sm" onchange="this.form.submit()">
                                                 <option value="Pending" {{ $item->pay_status === 'Pending' ? 'selected' : '' }}>Pending</option>
                                                 <option value="Accepted" {{ $item->pay_status === 'Accepted' ? 'selected' : '' }}>Accepted</option>
                                             </select>
-                                        </form>
+                                        </form> -->
                                     </td>
                                     <td>
                                         @if($item->proof)
@@ -263,13 +374,23 @@
                                                     $imageUrl = asset('storage/' . $proofPath);
                                                 }
                                             @endphp
-                                            <button type="button" class="btn btn-sm btn-outline-primary view-image-btn"  
+                                            <!-- <button type="button" class="btn btn-sm btn-outline-primary view-image-btn"
                                                     style="border: 2px solid #01017c; color: #01017c; background: transparent;"
                                                     data-bs-toggle="modal" data-bs-target="#viewImageModal"
                                                     data-image="{{ $imageUrl }}"
                                                     data-title="Payment Proof">
                                                 <i class="bi bi-eye"></i> View Proof
-                                            </button>
+                                            </button> -->
+                                            <button type="button"
+                                                class="btn btn-sm btn-outline-primary view-image-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#viewImageModal"
+                                                data-image="{{ asset('storage/' . $item->proof) }}"
+                                                data-title="Payment Proof"
+                                                data-payment-id="{{ $item->id }}"
+                                                data-status="{{ $item->pay_status }}">
+                                            <i class="bi bi-eye"></i> View Proof
+                                        </button>
                                         @else
                                             <span class="text-muted fst-italic">No Proof</span>
                                         @endif
@@ -278,48 +399,29 @@
 
                             {{-- TENANTS --}}
                             @elseif(in_array($report, ['active-tenants', 'pending-tenants', 'rejected-tenants']))
-                                @php 
+                                @php
                                     $app = $item->tenantApplication;
-                                    
-                                    // Get all active/pending leases for this tenant
-                                    $activeLeases = $item->leases->whereIn('lea_status', ['active', 'pending']);
-                                    
-                                    // If no active/pending leases, try to get any lease
-                                    if ($activeLeases->isEmpty()) {
-                                        $activeLeases = collect([$item->leases->first()])->filter();
+                                    $lease = $item->leases->first();
+                                    $unitType = $app->unit_type ?? 'N/A';
+
+                                    // Get room number and bed number from lease if available, otherwise from application
+                                    $roomNo = $lease->room_no ?? $app->room_no ?? 'N/A';
+                                    $bedNumber = $lease->bed_number ?? $app->bed_number ?? null;
+
+                                    // Format unit type with room number and bed number (if Bed-Spacer)
+                                    if ($unitType === 'Bed-Spacer' && $bedNumber) {
+                                        $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;
+                                    } elseif ($roomNo !== 'N/A') {
+                                        $unitTypeDisplay = $unitType . ' - ' . $roomNo;
+                                    } else {
+                                        $unitTypeDisplay = $unitType;
                                     }
-                                    
-                                    // Build unit type display with all units
-                                    $unitTypeDisplays = [];
-                                    
-                                    foreach ($activeLeases as $lease) {
-                                        if (!$lease) continue;
-                                        
-                                        // Get unit type from lease->unit if available, otherwise from tenantApplication
-                                        $unitType = ($lease->unit && $lease->unit->type) ? $lease->unit->type : ($app->unit_type ?? 'N/A');
-                                        $roomNo = $lease->room_no ?? (($lease->unit && $lease->unit->room_no) ? $lease->unit->room_no : 'N/A');
-                                        $bedNumber = $lease->bed_number ?? null;
-                                        
-                                        // Format unit type with room number and bed number (if Bed-Spacer)
-                                        if ($unitType === 'Bed-Spacer' && $bedNumber) {
-                                            $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;
-                                        } elseif ($roomNo !== 'N/A') {
-                                            $unitTypeDisplay = $unitType . ' - ' . $roomNo;
-                                        } else {
-                                            $unitTypeDisplay = $unitType;
-                                        }
-                                        
-                                        $unitTypeDisplays[] = $unitTypeDisplay;
-                                    }
-                                    
-                                    // Combine all units with line breaks (one unit per line)
-                                    $allUnitsDisplay = !empty($unitTypeDisplays) ? implode('<br>', $unitTypeDisplays) : ($app->unit_type ?? 'N/A');
                                 @endphp
                                 <tr>
                                     <td>{{ $item->name }}</td>
                                     <td>{{ $item->email }}</td>
                                     <td>{{ $app->contact_number ?? 'N/A' }}</td>
-                                    <td>{!! $allUnitsDisplay !!}</td>
+                                    <td>{{ $unitTypeDisplay }}</td>
                                     <td>{{ $app->employment_status ?? 'N/A' }}</td>
                                     <td>{{ $app->source_of_income ?? 'N/A' }}</td>
                                     <td>{{ $app->emergency_name ?? 'N/A' }} <br><small class="text-muted">{{ $app->emergency_number ?? '' }}</small></td>
@@ -332,76 +434,85 @@
 
                             {{-- LEASES --}}
                             @elseif($report === 'lease-summary')
-                            @php 
-                                $app = $item->tenantApplication;
-                                
-                                // Get all active/pending leases for this tenant
-                                $activeLeases = $item->leases->whereIn('lea_status', ['active', 'pending']);
-                                
-                                // If no active/pending leases, try to get any lease
-                                if ($activeLeases->isEmpty()) {
-                                    $activeLeases = collect([$item->leases->first()])->filter();
+                            @php
+                                $leases = $item->leases ?? collect();
+                                $unit_number = $lease->unit_id ?? "N/A";
+                                $unitType = $item->tenantApplication->unit_type ?? 'N/A';
+                                $roomNo = $lease->room_no ?? 'N/A';
+                                $bedNumber = $lease->bed_number ?? null;
+
+                                // Format unit type with room number and bed number (if Bed-Spacer)
+                                if ($unitType === 'Bed-Spacer' && $bedNumber) {
+                                    $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;
+                                } elseif ($roomNo !== 'N/A') {
+                                    $unitTypeDisplay = $unitType . ' - ' . $roomNo;
+                                } else {
+                                    $unitTypeDisplay = $unitType;
                                 }
-                                
-                                // Build unit type display with all units (one per line)
-                                $unitTypeDisplays = [];
-                                $leaseStartDates = [];
-                                $leaseEndDates = [];
-                                $leaseTerms = [];
-                                $leaseStatuses = [];
-                                
-                                foreach ($activeLeases as $lease) {
-                                    if (!$lease) continue;
-                                    
-                                    // Get unit type from lease->unit if available, otherwise from tenantApplication
-                                    $unitType = ($lease->unit && $lease->unit->type) ? $lease->unit->type : ($app->unit_type ?? 'N/A');
-                                    $roomNo = $lease->room_no ?? (($lease->unit && $lease->unit->room_no) ? $lease->unit->room_no : 'N/A');
-                                    $bedNumber = $lease->bed_number ?? null;
-                                    
-                                    // Format unit type with room number and bed number (if Bed-Spacer)
-                                    if ($unitType === 'Bed-Spacer' && $bedNumber) {
-                                        $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;
-                                    } elseif ($roomNo !== 'N/A') {
-                                        $unitTypeDisplay = $unitType . ' - ' . $roomNo;
-                                    } else {
-                                        $unitTypeDisplay = $unitType;
-                                    }
-                                    
-                                    $unitTypeDisplays[] = $unitTypeDisplay;
-                                    
-                                    // Collect lease information
-                                    if ($lease->lea_start_date) {
-                                        $leaseStartDates[] = \Carbon\Carbon::parse($lease->lea_start_date)->format('M d, Y');
-                                    } else {
-                                        $leaseStartDates[] = 'N/A';
-                                    }
-                                    
-                                    if ($lease->lea_end_date) {
-                                        $leaseEndDates[] = \Carbon\Carbon::parse($lease->lea_end_date)->format('M d, Y');
-                                    } else {
-                                        $leaseEndDates[] = 'N/A';
-                                    }
-                                    
-                                    $leaseTerms[] = $lease->lea_terms ?? 'N/A';
-                                    
-                                    $statusBadge = '<span class="badge bg-' . ($lease->lea_status === 'active' ? 'success' : ($lease->lea_status === 'terminated' ? 'danger' : 'secondary')) . '">' . ucfirst($lease->lea_status) . '</span>';
-                                    $leaseStatuses[] = $statusBadge;
-                                }
-                                
-                                // Combine all units with line breaks (one unit per line)
-                                $allUnitsDisplay = !empty($unitTypeDisplays) ? implode('<br>', $unitTypeDisplays) : ($app->unit_type ?? 'N/A');
-                                $allStartDatesDisplay = !empty($leaseStartDates) ? implode('<br>', $leaseStartDates) : 'N/A';
-                                $allEndDatesDisplay = !empty($leaseEndDates) ? implode('<br>', $leaseEndDates) : 'N/A';
-                                $allTermsDisplay = !empty($leaseTerms) ? implode('<br>', $leaseTerms) : 'N/A';
-                                $allStatusesDisplay = !empty($leaseStatuses) ? implode('<br>', $leaseStatuses) : '<span class="badge bg-secondary">N/A</span>';
                             @endphp
                             <tr>
                                 <td>{{ $item->name }}</td>
-                                <td>{!! $allUnitsDisplay !!}</td>
-                                <td>{!! $allStartDatesDisplay !!}</td>
-                                <td>{!! $allEndDatesDisplay !!}</td>
-                                <td>{!! $allTermsDisplay !!}</td>
-                                <td>{!! $allStatusesDisplay !!}</td>
+
+                                <td id="unit_number_{{ $item->id }}">
+                                    {{ $leases->first()->unit_id ?? 'N/A' }}
+                                </td>
+
+                                <td>
+                                    @if($leases->count() > 1)
+                                        <select
+                                            class="form-select form-select-sm"
+                                            onchange="updateLeaseDetails(this, {{ $item->id }})"
+                                        >
+                                            @foreach($leases as $lease)
+                                                @php
+                                                    $unitType = $item->tenantApplication->unit_type ?? 'N/A';
+                                                    $roomNo = $lease->room_no ?? 'N/A';
+                                                    $bedNumber = $lease->bed_number ?? null;
+
+                                                    if ($unitType === 'Bed-Spacer' && $bedNumber) {
+                                                        $unitTypeDisplay = $unitType . ' - ' . $roomNo . ' - Bed ' . $bedNumber;
+                                                    } elseif ($roomNo !== 'N/A') {
+                                                        $unitTypeDisplay = $unitType . ' - ' . $roomNo;
+                                                    } else {
+                                                        $unitTypeDisplay = $unitType;
+                                                    }
+                                                @endphp
+
+                                                <option
+                                                    value="{{ $lease->id }}"
+                                                    data-unit-number="{{ $lease->unit_id }}"
+                                                    data-start="{{ $lease->lea_start_date }}"
+                                                    data-end="{{ $lease->lea_end_date }}"
+                                                    data-terms="{{ $lease->lea_terms }}"
+                                                    data-status="{{ $lease->lea_status }}"
+                                                >
+                                                    {{ $unitTypeDisplay }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    @else
+                                        {{ $unitTypeDisplay }}
+                                    @endif
+                                </td>
+
+                                <td id="start_date_{{ $item->id }}">
+                                    {{ $leases->first()?->lea_start_date ? \Carbon\Carbon::parse($leases->first()->lea_start_date)->format('M d, Y') : 'N/A' }}
+                                </td>
+
+                                <td id="end_date_{{ $item->id }}">
+                                    {{ $leases->first()?->lea_end_date ? \Carbon\Carbon::parse($leases->first()->lea_end_date)->format('M d, Y') : 'N/A' }}
+                                </td>
+
+                                <td id="terms_{{ $item->id }}">
+                                    {{ $leases->first()?->lea_terms ?? 'N/A' }}
+                                </td>
+
+                                <td id="status_{{ $item->id }}">
+                                    @php $status = $leases->first()?->lea_status; @endphp
+                                    <span class="badge bg-{{ $status === 'active' ? 'success' : ($status === 'terminated' ? 'danger' : 'secondary') }}">
+                                        {{ ucfirst($status ?? 'N/A') }}
+                                    </span>
+                                </td>
                             </tr>
 
                             <!-- MAINTENANCE -->
@@ -410,7 +521,7 @@
                                     $unitType = null;
                                     $roomNo = null;
                                     $bedNumber = null;
-                                    
+
                                     if ($item->unit) {
                                         $unitType = $item->unit->type ?? null;
                                         $roomNo = $item->unit->room_no ?? null;
@@ -421,7 +532,7 @@
                                         $unitType = $item->unit_type ?? null;
                                         $roomNo = $item->room_no ?? null;
                                     }
-                                    
+
                                     // Format unit type with room number and bed number (if Bed-Spacer)
                                     if ($unitType && $roomNo) {
                                         if ($unitType === 'Bed-Spacer' && $bedNumber) {
@@ -578,7 +689,7 @@
 </div>
 
 <!-- Reusable Image Modal -->
-<div class="modal fade" id="viewImageModal" tabindex="-1" aria-labelledby="viewImageModalLabel" aria-hidden="true">
+<!-- <div class="modal fade" id="viewImageModal" tabindex="-1" aria-labelledby="viewImageModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #01017c;">
@@ -602,12 +713,70 @@
             </div>
         </div>
     </div>
+</div> -->
+<!-- New Reusable Image Modal -->
+ <div class="modal fade" id="viewImageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+
+            <div class="modal-header text-white" style="background-color: #01017c;">
+                <h5 class="modal-title" id="viewImageModalLabel">Payment Proof</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body text-center p-4">
+
+                <img id="modalIssueImage" src="" class="img-fluid rounded shadow-sm"
+                     style="max-height: 70vh; display: none;">
+
+                <div id="imageLoading" class="text-center">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2 text-muted small">Loading image...</p>
+                </div>
+
+                <div id="imageError" class="alert alert-warning d-none">
+                    Image could not be loaded.
+                </div>
+
+                {{-- ✅ SHOW BUTTONS ONLY ON PAYMENT HISTORY --}}
+                @if($report === 'payment-history')
+                    <!-- <div class="d-flex justify-content-center gap-3 mt-4">
+                        <form id="acceptForm" method="POST">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="pay_status" value="Accepted">
+                            <button class="btn btn-success px-4">Accept</button>
+                        </form>
+
+                        <form id="rejectForm" method="POST">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="pay_status" value="Rejected">
+                            <button class="btn btn-danger px-4">Reject</button>
+                        </form>
+                    </div> -->
+                    <div class="d-flex justify-content-center gap-3 mt-4" id="modalActionButtons">
+                        <button type="button" class="btn btn-success px-4" id="acceptBtn">Accept</button>
+                        <button type="button" class="btn btn-danger px-4" id="rejectBtn">Reject</button>
+                    </div>
+
+                    <form id="updatePaymentForm" method="POST" style="display: none;">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="pay_status" id="modalPayStatus">
+                    </form>
+                @endif
+
+            </div>
+        </div>
+    </div>
 </div>
 
 @endsection
 
 @push('scripts')
-<script>
+<!-- Old Script -->
+<!-- <script>
 document.addEventListener('DOMContentLoaded', function () {
     const modalImage = document.getElementById('modalIssueImage');
     const imageModal = document.getElementById('viewImageModal');
@@ -624,17 +793,17 @@ document.addEventListener('DOMContentLoaded', function () {
     imageModal.addEventListener('show.bs.modal', function (event) {
         // Get the button that triggered the modal
         const button = event.relatedTarget;
-        
+
         if (!button) {
             console.error('No button found that triggered the modal');
             return;
         }
-        
+
         const imageUrl = button.getAttribute('data-image');
         const title = button.getAttribute('data-title') || 'Payment Proof';
-        
+
         console.log('Loading image:', { imageUrl, title });
-        
+
         // Hide error and show loading
         if (imageError) imageError.style.display = 'none';
         if (imageLoading) imageLoading.style.display = 'block';
@@ -642,9 +811,9 @@ document.addEventListener('DOMContentLoaded', function () {
             modalImage.style.display = 'none';
             modalImage.src = '';
         }
-        
+
         if (modalTitle) modalTitle.textContent = title;
-        
+
         if (!imageUrl) {
             console.error('No image URL found in data-image attribute');
             if (imageLoading) imageLoading.style.display = 'none';
@@ -657,11 +826,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return;
         }
-        
+
         // Load the image with proper error handling
         if (modalImage) {
             const img = new Image();
-            
+
             img.onload = function() {
                 console.log('Image loaded successfully');
                 if (imageLoading) imageLoading.style.display = 'none';
@@ -669,7 +838,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 modalImage.src = imageUrl;
                 modalImage.style.display = 'block';
             };
-            
+
             img.onerror = function() {
                 console.error('Failed to load image from URL:', imageUrl);
                 if (imageLoading) imageLoading.style.display = 'none';
@@ -682,7 +851,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 modalImage.style.display = 'none';
             };
-            
+
             // Start loading the image
             img.src = imageUrl;
         }
@@ -700,6 +869,251 @@ document.addEventListener('DOMContentLoaded', function () {
         if (imageError) imageError.style.display = 'none';
         if (imageLoading) imageLoading.style.display = 'none';
     });
+});
+</script> -->
+
+
+
+
+<script>
+    function updateLeaseDetails(select, userId) {
+        const selected = select.options[select.selectedIndex];
+
+        const unitNumber = selected.dataset.unitNumber;
+        const start = selected.dataset.start;
+        const end = selected.dataset.end;
+        const terms = selected.dataset.terms;
+        const status = selected.dataset.status;
+
+        document.getElementById(`unit_number_${userId}`).innerText = unitNumber ?? 'N/A';
+        document.getElementById(`start_date_${userId}`).innerText = start ? new Date(start).toDateString() : 'N/A';
+        document.getElementById(`end_date_${userId}`).innerText = end ? new Date(end).toDateString() : 'N/A';
+        document.getElementById(`terms_${userId}`).innerText = terms ?? 'N/A';
+
+        let badgeClass = 'secondary';
+        if (status === 'active') badgeClass = 'success';
+        else if (status === 'terminated') badgeClass = 'danger';
+
+        document.getElementById(`status_${userId}`).innerHTML =
+            `<span class="badge bg-${badgeClass}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>`;
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tenantSelect = document.getElementById('tenant_id');
+    const leaseSelect = document.getElementById('lease_id');
+    const paymentForSelect = document.getElementById('payment_for');
+    const amountInput = document.getElementById('pay_amount');
+
+    const depositOption = document.getElementById('depositOption');
+    const rentOption = paymentForSelect.querySelector('option[value="Rent"]');
+    const utilitiesOption = paymentForSelect.querySelector('option[value="Utilities"]');
+
+    // ✅ RESET EVERYTHING
+    function resetAll() {
+        leaseSelect.innerHTML = '<option value="">Select Room / Unit</option>';
+        leaseSelect.disabled = true;
+
+        paymentForSelect.value = "";
+        paymentForSelect.disabled = true;
+
+        amountInput.value = "";
+        amountInput.disabled = true;
+
+        // Reset option labels
+        depositOption.classList.add('d-none');
+        depositOption.dataset.balance = 0;
+        depositOption.textContent = "Deposit";
+
+        rentOption.textContent = "Rent (Select unit first)";
+        utilitiesOption.textContent = "Utilities (Select unit first)";
+    }
+
+    resetAll();
+
+    // ✅ WHEN TENANT IS SELECTED
+    tenantSelect.addEventListener('change', function () {
+        const tenantId = this.value;
+        resetAll();
+        if (!tenantId) return;
+
+        leaseSelect.innerHTML = '<option value="">Loading...</option>';
+
+        fetch(`/manager/tenant/${tenantId}/leases`)
+            .then(res => res.json())
+            .then(data => {
+                leaseSelect.innerHTML = '<option value="">Select Room / Unit</option>';
+
+                data.forEach(lease => {
+                    leaseSelect.innerHTML += `
+                        <option
+                            value="${lease.id}"
+                            data-rent="${lease.room_price}"
+                            data-utilities="${lease.utility_balance}"
+                            data-deposit="${lease.deposit}"
+                        >
+                            ${lease.room_no} - ${lease.unit_type}
+                        </option>
+                    `;
+
+                    // ✅ SHOW DEPOSIT PRICE
+                    if (lease.deposit > 0) {
+                        depositOption.classList.remove('d-none');
+                        depositOption.dataset.balance = lease.deposit;
+                        depositOption.textContent = `Deposit (₱${parseFloat(lease.deposit).toFixed(2)})`;
+                    }
+                });
+
+                leaseSelect.disabled = false;
+            });
+    });
+
+    // ✅ WHEN LEASE IS SELECTED → UPDATE RENT & UTILITIES PRICES
+    leaseSelect.addEventListener('change', function () {
+        if (!this.value) {
+            paymentForSelect.disabled = true;
+            amountInput.disabled = true;
+            amountInput.value = "";
+            return;
+        }
+
+        const selectedLease = this.options[this.selectedIndex];
+
+        const rent = selectedLease.dataset.rent || 0;
+        const utilities = selectedLease.dataset.utilities || 0;
+
+        rentOption.textContent = `Rent (₱${parseFloat(rent).toFixed(2)})`;
+        utilitiesOption.textContent = `Utilities (₱${parseFloat(utilities).toFixed(2)})`;
+
+        paymentForSelect.disabled = false;
+    });
+
+    // ✅ WHEN PAYMENT TYPE IS SELECTED → AUTO-FILL AMOUNT
+    paymentForSelect.addEventListener('change', function () {
+        const selectedType = this.value;
+        const selectedLease = leaseSelect.options[leaseSelect.selectedIndex];
+
+        let balance = 0;
+
+        if (selectedType === "Deposit") {
+            balance = depositOption.dataset.balance || 0;
+        }
+
+        if (selectedType === "Rent") {
+            balance = selectedLease.dataset.rent || 0;
+        }
+
+        if (selectedType === "Utilities") {
+            balance = selectedLease.dataset.utilities || 0;
+        }
+
+        amountInput.disabled = false;
+        amountInput.value = parseFloat(balance).toFixed(2);
+    });
+});
+</script>
+
+
+<!-- New Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalImage = document.getElementById('modalIssueImage');
+    const imageModal = document.getElementById('viewImageModal');
+    const modalTitle = document.getElementById('viewImageModalLabel');
+    const imageError = document.getElementById('imageError');
+    const imageLoading = document.getElementById('imageLoading');
+
+    const acceptBtn = document.getElementById('acceptBtn');
+    const rejectBtn = document.getElementById('rejectBtn');
+    const updateForm = document.getElementById('updatePaymentForm');
+    const modalPayStatus = document.getElementById('modalPayStatus');
+
+    let currentPaymentId = null;
+
+    imageModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
+
+        const imageUrl = button.dataset.image;
+        const title = button.dataset.title || 'Payment Proof';
+        const paymentId = button.dataset.paymentId;
+        const status = button.dataset.status;
+
+        currentPaymentId = paymentId;
+
+        // Set modal title
+        if (modalTitle) modalTitle.textContent = title;
+
+        // Reset UI
+        if (modalImage) {
+            modalImage.style.display = 'none';
+            modalImage.src = '';
+        }
+        if (imageLoading) imageLoading.style.display = 'block';
+        if (imageError) imageError.style.display = 'none';
+
+        // Disable buttons if already accepted
+        if (status === 'Accepted') {
+            acceptBtn.disabled = true;
+            rejectBtn.disabled = true;
+        } else {
+            acceptBtn.disabled = false;
+            rejectBtn.disabled = false;
+        }
+
+        // Check if image URL is valid
+        if (!imageUrl) {
+            imageLoading.style.display = 'none';
+            imageError.style.display = 'block';
+            const urlDisplay = document.getElementById('imageUrlDisplay');
+            if (urlDisplay) urlDisplay.textContent = 'No image URL provided';
+            return;
+        }
+
+        // Load image directly into modalImage
+        modalImage.onload = function () {
+            imageLoading.style.display = 'none';
+            imageError.style.display = 'none';
+            modalImage.style.display = 'block';
+        };
+
+        modalImage.onerror = function () {
+            imageLoading.style.display = 'none';
+            imageError.style.display = 'block';
+            modalImage.style.display = 'none';
+
+            const urlDisplay = document.getElementById('imageUrlDisplay');
+            if (urlDisplay) {
+                urlDisplay.innerHTML = 'URL: <a href="' + imageUrl + '" target="_blank" class="text-decoration-none">' + imageUrl + '</a> (Click to test)';
+            }
+        };
+
+        // Start loading
+        modalImage.src = imageUrl;
+    });
+
+    // Reset modal when closed
+    imageModal.addEventListener('hidden.bs.modal', function () {
+        if (modalImage) {
+            modalImage.src = '';
+            modalImage.style.display = 'none';
+        }
+        if (modalTitle) modalTitle.textContent = 'Payment Proof';
+        if (imageLoading) imageLoading.style.display = 'none';
+        if (imageError) imageError.style.display = 'none';
+    });
+
+    // Accept / Reject buttons
+    function submitPaymentUpdate(newStatus) {
+        if (!currentPaymentId) return;
+        modalPayStatus.value = newStatus;
+        updateForm.action = `/manager/payments/${currentPaymentId}/status`;
+        updateForm.submit();
+    }
+
+    acceptBtn.addEventListener('click', function () { submitPaymentUpdate('Accepted'); });
+    rejectBtn.addEventListener('click', function () { submitPaymentUpdate('Rejected'); });
 });
 </script>
 @endpush

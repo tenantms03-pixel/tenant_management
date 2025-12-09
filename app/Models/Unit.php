@@ -16,7 +16,8 @@ class Unit extends Model
         'status',
         'property_id',
         'capacity',
-        'no_of_occupants'
+        'no_of_occupants',
+        'application_limit'
     ];
 
     // Unit belongs to a Property

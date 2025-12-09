@@ -16,7 +16,7 @@ class LandingController extends Controller
         $vacantCount = $units->where('status', 'vacant')->count();
 
         // Get available units (vacant or Bed-Spacer with available beds)
-        $availableUnits = Unit::with(['leases' => fn($query) => $query->whereIn('lea_status', ['active', 'pending'])])
+         $availableUnits = Unit::with(['leases' => fn($query) => $query->where('lea_status', 'active')])
             ->where(function ($query) {
                 $query->where('status', 'vacant')
                     ->orWhere(function ($bedQuery) {
@@ -26,7 +26,6 @@ class LandingController extends Controller
             })
             ->get();
 
-        // Get pending bed reservations
         $pendingBedReservations = TenantApplication::select('unit_id', 'bed_number')
             ->whereNotNull('bed_number')
             ->whereHas('user', function ($query) {
@@ -38,6 +37,7 @@ class LandingController extends Controller
 
         // Add taken_beds attribute to each unit
         $availableUnits->each(function ($unit) use ($pendingBedReservations) {
+            // Only include active leases, exclude pending
             $leaseBeds = $unit->leases->pluck('bed_number')->filter();
             $pendingBeds = $pendingBedReservations->get($unit->id, collect());
             $unit->setAttribute(

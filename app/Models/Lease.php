@@ -34,6 +34,11 @@ class Lease extends Model
         'rental_payment_status',
         'utility_payment_status',
         'move_out_requested',
+        'move_out_reason',
+        'rent_balance',
+        'deposit_balance',
+        'paid_date',
+        'penalty_fee'
     ];
 
 
@@ -41,6 +46,7 @@ class Lease extends Model
     protected $casts = [
         'lea_start_date' => 'date',
         'lea_end_date' => 'date',
+        'paid_date' => 'date',
     ];
 
     // Lease belongs to a tenant

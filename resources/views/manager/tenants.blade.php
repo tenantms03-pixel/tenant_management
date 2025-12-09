@@ -271,7 +271,7 @@
                 <div class="ms-auto">
                     <a href="{{ route('manager.tenants.export', ['filter' => $filter, 'search' => $search]) }}"
                         target="_blank"
-                        class="btn btn-outline-danger btn-sm d-flex align-items-center gap-2 rounded-pill shadow-sm px-3 py-2"  
+                        class="btn btn-outline-danger btn-sm d-flex align-items-center gap-2 rounded-pill shadow-sm px-3 py-2"
                         style="border: 2px solid #01017c; color: #01017c; background: transparent;">
                         <i class="bi bi-file-earmark-pdf-fill fs-6"></i>
                         <span class="fw-semibold">Export PDF</span>
@@ -311,223 +311,259 @@
 
 
     <!-- Tenant Table -->
-    <div class="card border-0 shadow-sm" style="overflow: visible;">
-        <div class="card-body p-0" style="overflow: visible;">
-            <div class="table-responsive" style="overflow: visible !important;">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+   <div class="card border-0 shadow-sm" style="overflow: visible;">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4" style="width: 20%;">Tenant</th>
+                        <th style="width: 10%;">Status</th>
+                        <th style="width: 20%;">Email</th>
+                        <th style="width: 20%;">Deposit Balance</th>
+                        <th style="width: 12%;">Rent Balance</th>
+                        <th style="width: 12%;">Utility Balance</th>
+                        <th style="width: 20%;">Leases</th>
+                        <th style="width: 6%;" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($filteredTenants as $tenant)
                         <tr>
-                            <th class="ps-4" style="width: 20%;">Tenant</th>
-                            <th style="width: 10%;">Status</th>
-                            <th style="width: 20%;">Email</th>
-                            <th style="width: 12%;">Rent Balance</th>
-                            <th style="width: 12%;">Utility Balance</th>
-                            <th style="width: 20%;">Leases</th>
-                            <th style="width: 6%;" class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($filteredTenants as $tenant)
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="fw-semibold text-dark">{{ $tenant->name }}</div>
-                                </td>
-                                <td>
-                                    <span class="status-badge status-{{ $tenant->status }}">
-                                        {{ ucfirst($tenant->status) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    @if($tenant->status !== 'rejected')
-                                        <span class="text-muted">{{ $tenant->email }}</span>
-                                    @else
-                                        <span class="text-danger">Rejected</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($tenant->status !== 'rejected')
-                                        <span class="fw-semibold">₱{{ number_format($tenant->rent_balance ?? 0, 2) }}</span>
-                                    @else
-                                        <span class="text-muted">—</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($tenant->status !== 'rejected')
-                                        <span class="fw-semibold">₱{{ number_format($tenant->total_utility_balance ?? 0, 2) }}</span>
-                                    @else
-                                        <span class="text-muted">—</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($tenant->leases && $tenant->leases->isNotEmpty())
-                                        @php
-                                            // Group leases by unit (room_no + unit type) and get the latest one for each unit
-                                            $groupedLeases = [];
-                                            foreach($tenant->leases as $lease) {
-                                                $roomNo = $lease->room_no ?? 'Room';
-                                                $unitType = $lease->unit->type ?? 'Unit';
-                                                $unitKey = $roomNo . '-' . $unitType;
-                                                
-                                                // If this unit doesn't exist in the group, or this lease is newer, use this lease
-                                                if (!isset($groupedLeases[$unitKey])) {
-                                                    $groupedLeases[$unitKey] = $lease;
-                                                } else {
-                                                    $existing = $groupedLeases[$unitKey];
-                                                    // Compare by updated_at first (most recent status change), then created_at
-                                                    $existingDate = $existing->updated_at ?? $existing->created_at;
-                                                    $currentDate = $lease->updated_at ?? $lease->created_at;
-                                                    
-                                                    if ($currentDate > $existingDate || 
-                                                        ($currentDate == $existingDate && $lease->id > $existing->id)) {
-                                                        $groupedLeases[$unitKey] = $lease;
-                                                    }
-                                                }
-                                            }
-                                        @endphp
-                                        <div class="d-flex flex-column gap-1">
-                                            @foreach($groupedLeases as $lease)
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <span class="badge bg-primary-subtle text-primary">
-                                                        {{ $lease->room_no ?? 'Room' }} - {{ $lease->unit->type ?? 'Unit' }}
-                                                    </span>
-                                                    <span class="badge 
-                                                        @if(in_array(strtolower($lease->lea_status ?? ''), ['active', 'approved'])) bg-success-subtle text-success
-                                                        @elseif(in_array(strtolower($lease->lea_status ?? ''), ['pending'])) bg-warning-subtle text-warning
-                                                        @elseif(in_array(strtolower($lease->lea_status ?? ''), ['terminated', 'ended', 'rejected', 'voided'])) bg-danger-subtle text-danger
-                                                        @else bg-secondary-subtle text-secondary
-                                                        @endif">
-                                                        {{ ucfirst($lease->lea_status ?? 'N/A') }}
-                                                    </span>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @elseif($tenant->tenantApplication)
-                                        {{-- Show tenant application info when no leases exist --}}
-                                        <div class="d-flex flex-column gap-1">
+                            <td class="ps-4">
+                                <div class="fw-semibold text-dark">{{ $tenant->name }}</div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ $tenant->status }}">
+                                    {{ ucfirst($tenant->status) }}
+                                </span>
+                            </td>
+                            <td>
+                                @if($tenant->status !== 'rejected')
+                                    <span class="text-muted">{{ $tenant->email }}</span>
+                                @else
+                                    <span class="text-danger">Rejected</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($tenant->status !== 'rejected')
+                                    <span class="fw-semibold">₱{{ number_format($tenant->deposit_amount ?? 0, 2) }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($tenant->status !== 'rejected')
+                                    <span class="fw-semibold">₱{{ number_format($tenant->rent_balance ?? 0, 2) }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($tenant->status !== 'rejected')
+                                    <span class="fw-semibold">₱{{ number_format($tenant->total_utility_balance ?? 0, 2) }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($tenant->leases && $tenant->leases->isNotEmpty())
+                                    <div class="d-flex flex-column gap-1">
+                                        @foreach($tenant->leases as $lease)
                                             <div class="d-flex align-items-center gap-2">
-                                                @php
-                                                    $app = $tenant->tenantApplication;
-                                                    $unit = $app->unit ?? null;
-                                                    $roomNo = $app->room_no ?? ($unit->room_no ?? 'N/A');
-                                                    $unitType = $app->unit_type ?? ($unit->type ?? 'N/A');
-                                                @endphp
                                                 <span class="badge bg-primary-subtle text-primary">
-                                                    {{ $roomNo }} - {{ $unitType }}
+                                                    {{ $lease->room_no ?? 'Room' }} - {{ $lease->unit->type ?? 'Unit' }}
                                                 </span>
-                                                <span class="badge 
-                                                    @if($tenant->status === 'approved') bg-success-subtle text-success
-                                                    @elseif($tenant->status === 'pending') bg-warning-subtle text-warning
-                                                    @elseif($tenant->status === 'rejected') bg-danger-subtle text-danger
+                                                <span class="badge
+                                                    @if(in_array(strtolower($lease->lea_status ?? ''), ['active', 'approved'])) bg-success-subtle text-success
+                                                    @elseif(in_array(strtolower($lease->lea_status ?? ''), ['pending'])) bg-warning-subtle text-warning
+                                                    @elseif(in_array(strtolower($lease->lea_status ?? ''), ['terminated', 'ended', 'rejected', 'voided'])) bg-danger-subtle text-danger
                                                     @else bg-secondary-subtle text-secondary
                                                     @endif">
-                                                    {{ ucfirst($tenant->status ?? 'Pending') }}
+                                                    {{ ucfirst($lease->lea_status ?? 'N/A') }}
                                                 </span>
                                             </div>
+                                        @endforeach
+                                    </div>
+                                @elseif($tenant->tenantApplication)
+                                    <div class="d-flex flex-column gap-1">
+                                        <div class="d-flex align-items-center gap-2">
+                                            @php
+                                                $app = $tenant->tenantApplication;
+                                                $unit = $app->unit ?? null;
+                                                $roomNo = $app->room_no ?? ($unit->room_no ?? 'N/A');
+                                                $unitType = $app->unit_type ?? ($unit->type ?? 'N/A');
+                                            @endphp
+                                            <span class="badge bg-primary-subtle text-primary">
+                                                {{ $roomNo }} - {{ $unitType }}
+                                            </span>
+                                            <span class="badge
+                                                @if($tenant->status === 'approved') bg-success-subtle text-success
+                                                @elseif($tenant->status === 'pending') bg-warning-subtle text-warning
+                                                @elseif($tenant->status === 'rejected') bg-danger-subtle text-danger
+                                                @else bg-secondary-subtle text-secondary
+                                                @endif">
+                                                {{ ucfirst($tenant->status ?? 'Pending') }}
+                                            </span>
                                         </div>
-                                    @else
-                                        <span class="text-muted">No leases</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    <div class="dropdown">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="bi bi-three-dots-vertical"></i>
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end" style="min-width: 220px;">
-                                            @if($tenant->status !== 'rejected')
-                                                <!-- View ID -->
-                                                <li>
-                                                    @if($tenant->tenantApplication && $tenant->tenantApplication->valid_id_path && $tenant->tenantApplication->id_picture_path)
-                                                        <a class="dropdown-item" href="{{ route('manager.tenants.viewIds', $tenant->id) }}" target="_blank">
-                                                            <i class="bi bi-card-image me-2"></i> View ID
-                                                        </a>
-                                                    @else
-                                                        <span class="dropdown-item-text text-muted">
-                                                            <i class="bi bi-card-image me-2"></i> View ID <small>(Not Available)</small>
-                                                        </span>
-                                                    @endif
-                                                </li>
-                                                
-                                                <!-- Proof of Billing History -->
-                                                <li>
-                                                    <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#utilityProofModal{{ $tenant->id }}">
-                                                        <i class="bi bi-receipt me-2"></i> Proof of Billing History
-                                                    </button>
-                                                </li>
-                                                
-                                                <!-- Accept and Reject for Pending Applications -->
-                                                @if($tenant->status === 'pending')
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li>
-                                                        <form action="{{ route('manager.tenant.approve', $tenant->id) }}" method="POST" class="d-inline-block w-100">
-                                                            @csrf
-                                                            <button type="submit" class="dropdown-item text-success fw-semibold w-100 text-start" onclick="return confirm('Accept {{ $tenant->name }}?')">
-                                                                <i class="bi bi-check-circle-fill me-2"></i> Accept
-                                                            </button>
-                                                        </form>
-                                                    </li>
-                                                    <li>
-                                                        <button type="button" class="dropdown-item text-danger fw-semibold" data-bs-toggle="modal" data-bs-target="#rejectTenantModal{{ $tenant->id }}">
-                                                            <i class="bi bi-x-circle-fill me-2"></i> Reject
-                                                        </button>
-                                                    </li>
-                                                @endif
-                                                
-                                                <!-- Move Out Actions -->
-                                                @if($tenant->leases && $tenant->leases->isNotEmpty())
-                                                    @php
-                                                        $activeLeases = $tenant->leases->filter(function($lease) {
-                                                            return in_array($lease->lea_status, ['active', 'pending', 'Active', 'Pending']);
-                                                        });
-                                                    @endphp
-                                                    @if($activeLeases->isNotEmpty())
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        @foreach($activeLeases as $lease)
-                                                            <li>
-                                                                <form method="POST" action="{{ route('manager.leases.moveOut', $lease->id) }}" class="d-inline-block w-100">
-                                                                    @csrf
-                                                                    <button type="submit" class="dropdown-item text-danger w-100 text-start" onclick="return confirm('Move out tenant from {{ $lease->room_no ?? 'Room' }} - {{ $lease->unit->type ?? 'Unit' }}?')">
-                                                                        <i class="bi bi-door-open me-2"></i> Move Out ({{ $lease->room_no ?? 'Room' }})
-                                                                    </button>
-                                                                </form>
-                                                            </li>
-                                                        @endforeach
-                                                    @endif
-                                                @endif
-                                            @else
-                                                <!-- Rejected tenant actions -->
-                                                <li>
+                                    </div>
+                                @else
+                                    <span class="text-muted">No leases</span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                <div class="dropdown">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-display="static"
+                                        aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" >
+                                        @if($tenant->status !== 'rejected')
+                                            <!-- View ID -->
+                                            <li>
+                                                @if($tenant->tenantApplication && $tenant->tenantApplication->valid_id_path && $tenant->tenantApplication->id_picture_path)
+                                                    <a class="dropdown-item" href="{{ route('manager.tenants.viewIds', $tenant->id) }}" target="_blank">
+                                                        <i class="bi bi-card-image me-2"></i> View ID
+                                                    </a>
+                                                @else
                                                     <span class="dropdown-item-text text-muted">
-                                                        <i class="bi bi-info-circle me-2"></i> Reason: {{ $tenant->rejection_reason ?? 'N/A' }}
+                                                        <i class="bi bi-card-image me-2"></i> View ID <small>(Not Available)</small>
                                                     </span>
-                                                </li>
+                                                @endif
+                                            </li>
+
+                                            <!-- Proof of Billing History -->
+                                            <li>
+                                                <a class="dropdown-item"
+                                                    href="#"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#utilityProofModal{{ $tenant->id }}">
+                                                    <i class="bi bi-receipt me-2"></i> Proof of Billing History
+                                                </a>
+                                            </li>
+
+                                            <!-- Accept and Reject for Pending Applications -->
+                                            @if($tenant->status === 'pending')
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
-                                                    <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#tenantDetailsModal{{ $tenant->id }}">
-                                                        <i class="bi bi-person-circle me-2"></i> View Details
-                                                    </button>
+                                                    <form action="{{ route('manager.tenant.approve', $tenant->id) }}" method="POST" class="d-inline-block w-100">
+                                                        @csrf
+                                                        <button type="submit" class="dropdown-item text-success fw-semibold w-100 text-start" onclick="return confirm('Accept {{ $tenant->name }}?')">
+                                                            <i class="bi bi-check-circle-fill me-2"></i> Accept
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item text-danger fw-semibold"
+                                                        href="#"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#rejectTenantModal{{ $tenant->id }}">
+                                                        <i class="bi bi-x-circle-fill me-2"></i> Reject
+                                                    </a>
                                                 </li>
                                             @endif
-                                        </ul>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="text-center py-5">
-                                    <div class="empty-state">
-                                        <img src="https://cdn-icons-png.flaticon.com/512/4076/4076504.png" alt="No tenants" style="width: 120px; opacity: 0.5;">
-                                        <p class="text-muted mt-3 mb-0">No tenants found for this filter.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+
+                                            <!-- Move Out Actions -->
+                                            @if($tenant->leases && $tenant->leases->isNotEmpty())
+                                                @php
+                                                    $activeLeases = $tenant->leases->filter(fn($lease) => in_array(strtolower($lease->lea_status), ['active', 'pending']));
+                                                @endphp
+
+                                                @if($activeLeases->isNotEmpty())
+                                                    <li><hr class="dropdown-divider"></li>
+
+                                                    @foreach($activeLeases as $lease)
+                                                        @if($lease->move_out_requested)
+                                                                <button type="button" class="dropdown-item text-warning fw-semibold" data-bs-toggle="modal" data-bs-target="#moveOutReasonModal{{ $lease->id }}"> <i class="bi bi-exclamation-circle me-2"></i> Move Out Requested <span class="text-info">({{ $lease->unit->room_no }})</span> </button>
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @endif
+                                        @else
+                                            <!-- Rejected tenant actions -->
+                                            <li>
+                                                <span class="dropdown-item-text text-muted">
+                                                    <i class="bi bi-info-circle me-2"></i> Reason: {{ $tenant->rejection_reason ?? 'N/A' }}
+                                                </span>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item"
+                                                    href="#"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#tenantDetailsModal{{ $tenant->id }}">
+                                                    <i class="bi bi-person-circle me-2"></i> View Details
+                                                </a>
+                                            </li>
+                                        @endif
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <img src="https://cdn-icons-png.flaticon.com/512/4076/4076504.png" alt="No tenants" style="width: 120px; opacity: 0.5;">
+                                    <p class="text-muted mt-3 mb-0">No tenants found for this filter.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+</div>
+
+<!-- Move Out Reason Modal (for already requested) -->
+@foreach($filteredTenants as $tenant)
+    @if($tenant->leases && $tenant->leases->isNotEmpty())
+        @foreach($tenant->leases as $lease)
+            @if($lease->move_out_requested)
+            <div class="modal fade" id="moveOutReasonModal{{ $lease->id }}" tabindex="-1" aria-labelledby="moveOutReasonModalLabel{{ $lease->id }}" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Move Out Request - Room {{ $lease->room_no }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Reason Provided by Tenant:</strong></p>
+                            <p>{{ $lease->move_out_reason ?? 'No reason provided.' }}</p>
+
+                            {{-- Reject Reason --}}
+                            <form id="rejectMoveOutForm{{ $lease->id }}" method="POST" action="{{ route('manager.leases.rejectMoveOut', $lease->id) }}">
+                                @csrf
+                                <div class="mb-3 mt-3">
+                                    <label for="rejectReason{{ $lease->id }}" class="form-label">Reason for Rejecting Move Out</label>
+                                    <textarea name="reason" id="rejectReason{{ $lease->id }}" class="form-control" rows="3" placeholder="Enter reason for rejecting..." required></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            {{-- Approve Form --}}
+                            <form method="POST" action="{{ route('manager.leases.approveMoveOut', $lease->id) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-success">Approve</button>
+                            </form>
+
+                            {{-- Reject Submit Button --}}
+                            <button type="submit" form="rejectMoveOutForm{{ $lease->id }}" class="btn btn-danger">Reject</button>
+
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+        @endforeach
+    @endif
+@endforeach
+
 
 <!-- Tenant Details Modals -->
 @foreach($filteredTenants as $tenant)
@@ -546,7 +582,7 @@
                             <p><strong>Full Name:</strong> {{ $tenant->name }}</p>
                             <p><strong>Email:</strong> {{ $tenant->email }}</p>
                             <p><strong>Contact:</strong> {{ $tenant->contact_number ?? 'N/A' }}</p>
-                            <p><strong>Status:</strong> 
+                            <p><strong>Status:</strong>
                                 <span class="badge status-badge status-{{ $tenant->status }}">
                                     {{ ucfirst($tenant->status) }}
                                 </span>
@@ -667,7 +703,7 @@
                                             </h6>
                                             <p class="text-muted small mb-0">
                                                 @if($lease->bed_number)
-                                                    Bed {{ $lease->bed_number }} · 
+                                                    Bed {{ $lease->bed_number }} ·
                                                 @endif
                                                 Status: <span class="badge bg-{{ $lease->lea_status === 'active' ? 'success' : ($lease->lea_status === 'pending' ? 'warning text-dark' : 'secondary') }}">{{ ucfirst($lease->lea_status) }}</span>
                                             </p>
@@ -802,7 +838,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize all dropdowns manually to ensure they work
     var dropdownElementList = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-    
+
     dropdownElementList.forEach(function(dropdownToggleEl) {
         // Check if Bootstrap is available
         if (typeof bootstrap !== 'undefined') {
@@ -833,14 +869,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
+
     // Also add click event as fallback with better positioning
     dropdownElementList.forEach(function(button) {
         button.addEventListener('click', function(e) {
             e.stopPropagation();
             var dropdown = this.closest('.dropdown');
             var dropdownMenu = dropdown ? dropdown.querySelector('.dropdown-menu') : null;
-            
+
             if (dropdownMenu) {
                 // Close all other dropdowns
                 document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
@@ -848,19 +884,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         menu.classList.remove('show');
                     }
                 });
-                
+
                 // Toggle current dropdown
                 var isShown = dropdownMenu.classList.contains('show');
-                
+
                 if (!isShown) {
                     dropdownMenu.classList.add('show');
-                    
+
                     // Ensure dropdown is visible - adjust position if needed
                     setTimeout(function() {
                         var rect = dropdownMenu.getBoundingClientRect();
                         var viewportHeight = window.innerHeight;
                         var viewportWidth = window.innerWidth;
-                        
+
                         // If dropdown goes below viewport, adjust position
                         if (rect.bottom > viewportHeight) {
                             var overflow = rect.bottom - viewportHeight;
@@ -869,7 +905,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             dropdownMenu.style.marginTop = '0';
                             dropdownMenu.style.marginBottom = '0.125rem';
                         }
-                        
+
                         // If dropdown goes to the right of viewport, adjust position
                         if (rect.right > viewportWidth) {
                             dropdownMenu.style.right = '0';
@@ -882,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
+
     // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.dropdown')) {

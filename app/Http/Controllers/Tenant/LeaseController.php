@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class LeaseController extends Controller
 {
-    
+
     // Fetch available units for a property
     public function index()
     {
@@ -118,7 +118,7 @@ class LeaseController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Unit application submitted successfully!');
-    }   
+    }
 
 
 }

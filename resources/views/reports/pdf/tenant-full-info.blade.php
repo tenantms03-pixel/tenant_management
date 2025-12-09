@@ -4,103 +4,90 @@
     <meta charset="UTF-8">
     <title>Tenant Data Sheet</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: DejaVu Sans, sans-serif;
-            padding: 20px;
-            color: #333;
-            line-height: 1.6;
+            margin: 40px;
+            color: #222;
+            background-color: #fff;
         }
-        .header {
+
+        h1, h2, h3 {
+            color: #0d6efd;
             text-align: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #2563eb;
         }
-        .header h1 {
-            font-size: 22px;
-            color: #1e40af;
-            margin-bottom: 8px;
-            font-weight: bold;
+
+        h1 {
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        .header p {
-            font-size: 10px;
-            color: #666;
-        }
+
         hr {
             border: none;
-            border-top: 2px solid #e5e7eb;
-            margin: 20px 0;
+            border-top: 2px solid #0d6efd;
+            margin: 15px 0;
         }
+
         p {
-            margin: 6px 0;
-            font-size: 11px;
+            margin: 4px 0;
+            line-height: 1.5;
         }
+
         b {
-            color: #1e40af;
-            font-weight: bold;
+            color: #333;
         }
+
         .section {
-            margin-top: 20px;
+            margin-top: 25px;
         }
+
         .section-title {
-            background-color: #2563eb;
-            color: #ffffff;
-            padding: 10px 15px;
-            margin: 20px 0 15px 0;
-            font-size: 12px;
-            font-weight: bold;
             text-transform: uppercase;
-            border-radius: 4px;
+            text-decoration: underline;
+            color: #0d6efd;
+            font-weight: bold;
         }
+
         .id-section {
             text-align: center;
             margin-top: 20px;
         }
+
         .id-section img {
             width: 260px;
             height: auto;
-            border: 2px solid #e5e7eb;
+            border: 1px solid #ccc;
             border-radius: 8px;
             margin: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
         .status {
             font-weight: bold;
             text-transform: capitalize;
-            padding: 4px 10px;
-            border-radius: 4px;
-            display: inline-block;
         }
+
         .status.pending {
-            background-color: #fef3c7;
-            color: #92400e;
+            color: #856404;
         }
+
         .status.approved {
-            background-color: #d1fae5;
-            color: #065f46;
+            color: #0f5132;
         }
+
         .status.rejected {
-            background-color: #fee2e2;
-            color: #991b1b;
+            color: #842029;
         }
+
         .footer {
-            margin-top: 40px;
-            padding-top: 15px;
-            border-top: 2px solid #e5e7eb;
             text-align: center;
-            font-size: 9px;
-            color: #6b7280;
+            font-size: 13px;
+            color: #666;
+            margin-top: 40px;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Tenant Bio Data</h1>
-        <p><strong>Generated:</strong> {{ now()->format('F d, Y \a\t h:i A') }}</p>
-    </div>
+
+    <h1>Tenant Bio Data</h1>
     <hr>
 
     <div class="section">
@@ -227,7 +214,8 @@
 
     <hr>
     <div class="footer">
-        <p>Property Management System | Generated on {{ now()->format('F d, Y') }}</p>
+        Generated on {{ now()->format('F d, Y') }} | Property Management System
     </div>
+
 </body>
 </html>

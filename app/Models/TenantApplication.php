@@ -25,6 +25,7 @@ class TenantApplication extends Model
         'employment_status',
         'employer_school',
         'source_of_income',
+        'monthly_income',
         'emergency_name',
         'emergency_number',
         'emergency_relationship',

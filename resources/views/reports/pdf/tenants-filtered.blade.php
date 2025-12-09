@@ -4,100 +4,52 @@
     <meta charset="utf-8">
     <title>Tenant Report ({{ ucfirst($filter) }})</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: DejaVu Sans, sans-serif; 
+            font-size: 12px; 
+            margin: 20px; 
+        }
+        h2 { 
+            text-align: center; 
+            margin-bottom: 5px; 
+        }
+        p { 
             font-size: 11px; 
-            color: #333;
-            padding: 20px;
-            line-height: 1.4;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #2563eb;
-        }
-        .header h1 {
-            font-size: 20px;
-            color: #1e40af;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        .header p {
-            font-size: 10px;
-            color: #666;
-            margin-top: 5px;
+            margin-top: 0; 
+            color: #555; 
         }
         table { 
             width: 100%; 
             border-collapse: collapse; 
-            margin-bottom: 20px;
-            font-size: 10px;
+            margin-top: 20px; 
         }
         th, td { 
-            border: 1px solid #e5e7eb; 
-            padding: 8px 6px; 
-            text-align: left;
-            vertical-align: top;
+            border: 1px solid #ccc; 
+            padding: 6px; 
+            text-align: left; 
         }
         th { 
-            background-color: #2563eb;
-            color: #ffffff;
-            font-weight: bold;
+            background-color: #f2f2f2; 
+            font-weight: bold; 
             text-align: center;
-            font-size: 10px;
-        }
-        tr:nth-child(even) {
-            background-color: #f9fafb;
-        }
-        tr:hover {
-            background-color: #f3f4f6;
         }
         td.status { 
             font-weight: bold; 
-            text-align: center;
-            padding: 6px;
+            text-align: center; 
         }
-        .status-approved { 
-            background-color: #d1fae5; 
-            color: #065f46; 
-            border-radius: 4px;
-        }
-        .status-pending { 
-            background-color: #fef3c7; 
-            color: #92400e; 
-            border-radius: 4px;
-        }
-        .status-rejected { 
-            background-color: #fee2e2; 
-            color: #991b1b; 
-            border-radius: 4px;
-        }
+        .status-approved { background-color: #d4edda; color: #155724; }
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-rejected { background-color: #f8d7da; color: #721c24; }
         .no-data { 
             text-align: center; 
-            color: #9ca3af; 
-            font-style: italic;
-            padding: 20px;
-            background-color: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 4px;
-        }
-        .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #e5e7eb;
-            text-align: center;
-            font-size: 9px;
-            color: #6b7280;
+            color: #777; 
+            font-style: italic; 
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Tenant Report - {{ ucfirst($filter) }}</h1>
-        <p><strong>Generated:</strong> {{ \Carbon\Carbon::parse($generatedAt)->format('F d, Y \a\t h:i A') }}</p>
-    </div>
+    <h2>Tenant Report - {{ ucfirst($filter) }}</h2>
+    <p><strong>Generated:</strong> {{ $generatedAt }}</p>
 
     @if($tenants->isNotEmpty())
         <table>
@@ -154,9 +106,5 @@
     @else
         <p class="no-data">No tenants found for this filter.</p>
     @endif
-    
-    <div class="footer">
-        <p>Property Management System | Generated on {{ \Carbon\Carbon::parse($generatedAt)->format('F d, Y') }}</p>
-    </div>
 </body>
 </html>

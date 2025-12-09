@@ -13,6 +13,7 @@ return new class extends Migration
             $table->string('type');
             $table->string('room_no')->unique();
             $table->decimal('room_price', 10, 2);
+            $table->integer('application_limit')->nullable();
             $table->string('status')->default('vacant'); // vacant/occupied
             $table->timestamps();
         });

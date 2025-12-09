@@ -21,7 +21,7 @@
 
      {{-- 🏠 Payment Summary Cards --}}
     <div class="row g-4 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
                 <div class="card border-0 rounded-4 shadow-sm h-100 bg-gradient-warning text-white">
                     <div class="card-body d-flex flex-column justify-content-center text-center">
                         <i class="bi bi-cash-coin fs-1 mb-2 opacity-75"></i>
@@ -43,7 +43,7 @@
                 </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card border-0 rounded-4 shadow-sm h-100 bg-gradient-danger text-white"
                  style="cursor:pointer;" onclick="viewUtilityProof()">
                 <div class="card-body d-flex flex-column justify-content-center text-center">
@@ -54,7 +54,7 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        <!-- <div class="col-md-4">
             <div class="card border-0 rounded-4 shadow-sm h-100 bg-gradient-success text-white">
                 <div class="card-body d-flex flex-column justify-content-center text-center">
                     <i class="bi bi-wallet2 fs-1 mb-2 opacity-75"></i>
@@ -62,19 +62,35 @@
                     <h3 class="fw-bold mb-0">₱{{ number_format(auth()->user()->user_credit ?? 0, 2) }}</h3>
                 </div>
             </div>
-        </div>
+        </div> -->
     </div>
 
     {{-- 📜 Payment History --}}
     <div class="card border-0 rounded-4 shadow-sm mb-4">
         <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center rounded-top-4">
             <h5 class="fw-bold mb-0"><i class="bi bi-clock-history me-2"></i>Payment History</h5>
-            <button
+            <!-- <button
                 class="btn btn-sm text-white px-3 py-2 rounded-3"
                 style="background-color: #01017c; color: white; border: none; padding: 8px 20px;"
                 data-bs-toggle="modal"
                 data-bs-target="#makePaymentModal"
                 {{ $leasesForSelection->isEmpty() ? 'disabled' : '' }}
+            >
+                <i class="bi bi-plus-lg"></i> Make Payment
+            </button> -->
+
+            @php
+                $hasPendingPayment = $payments->contains(function($payment) {
+                    return $payment->pay_status === 'Pending';
+                });
+            @endphp
+
+            <button
+                class="btn btn-sm text-white px-3 py-2 rounded-3"
+                style="background-color: #01017c; color: white; border: none; padding: 8px 20px;"
+                data-bs-toggle="modal"
+                data-bs-target="#makePaymentModal"
+                {{ $leasesForSelection->isEmpty() || $hasPendingPayment ? 'disabled' : '' }}
             >
                 <i class="bi bi-plus-lg"></i> Make Payment
             </button>
@@ -122,8 +138,16 @@
                                 <td class="fw-semibold text-success">₱{{ number_format($payment->pay_amount, 2) }}</td>
                                 <td>{{ $payment->account_no ?? '-' }}</td>
                                 <td>
-                                    <span class="badge rounded-pill bg-{{ $payment->pay_status === 'Accepted' ? 'success' : 'warning text-dark' }}">
-                                        {{ $payment->pay_status }}
+                                    <span class="badge
+                                            @if($payment->pay_status === 'Accepted')
+                                                bg-success
+                                            @elseif($payment->pay_status === 'Rejected')
+                                                bg-danger
+                                            @else
+                                                bg-warning text-dark
+                                            @endif
+                                        ">
+                                            {{ $payment->pay_status }}
                                     </span>
                                 </td>
                                 <td>
@@ -159,7 +183,7 @@
                     <select name="lease_id" id="lease_id" class="form-select" {{ $leasesForSelection->isEmpty() ? 'disabled' : '' }} required>
                         <option value="">Select Room / Unit</option>
                         @foreach($leasesForSelection as $leaseOption)
-                            <option value="{{ $leaseOption->id }}" 
+                            <option value="{{ $leaseOption->id }}"
                                     data-utility-balance="{{ $leaseOption->utility_balance ?? 0 }}"
                                     data-rent-balance="{{ $leaseOption->rent_balance ?? 0 }}"
                                     {{ old('lease_id') == $leaseOption->id ? 'selected' : '' }}>
@@ -193,7 +217,7 @@
                         <option value="Utilities" data-balance="0" data-lease-specific="true">
                             Utilities (Select unit first)
                         </option>
-                        <option value="Other" data-balance="0">Pay in Advance</option>
+                        <!-- <option value="Other" data-balance="0">Pay in Advance</option> -->
                     </select>
                     <label for="payment_for">Payment For</label>
                 </div>
@@ -256,6 +280,7 @@
                             <thead>
                                 <tr>
                                     <th>Billing Month</th>
+                                    <th>Billing Type</th>
                                     <th>Utility Balance (₱)</th>
                                     <th>Uploaded At</th>
                                     <th>Proof</th>
@@ -265,6 +290,7 @@
                                 @foreach($utilityProofs as $proof)
                                     <tr>
                                         <td>{{ $proof->billing_month ?? '—' }}</td>
+                                        <td>{{ $proof->billing_type ?? '—' }}</td>
                                         <td>₱{{ number_format($proof->amount ?? $proof->lease->utility_balance ?? 0, 2) }}</td>
                                         <td>{{ $proof->created_at->format('M d, Y h:i A') }}</td>
                                         <td>
@@ -334,18 +360,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updatePaymentOptions() {
         const selectedLeaseId = leaseSelect.value;
-        
+
         if (!paymentFor) return;
-        
+
         // Get all options
         const depositOption = Array.from(paymentFor.options).find(opt => opt.value === 'Deposit');
         const rentOption = Array.from(paymentFor.options).find(opt => opt.value === 'Rent');
         const utilitiesOption = Array.from(paymentFor.options).find(opt => opt.value === 'Utilities');
         const otherOption = Array.from(paymentFor.options).find(opt => opt.value === 'Other');
-        
+
         if (selectedLeaseId && leaseData[selectedLeaseId]) {
             const lease = leaseData[selectedLeaseId];
-            
+
             // Update Rent option
             if (rentOption) {
                 if (lease.rentBalance > 0) {
@@ -356,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     rentOption.style.display = 'none';
                 }
             }
-            
+
             // Update Utilities option
             if (utilitiesOption) {
                 if (lease.utilityBalance > 0) {
@@ -380,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 utilitiesOption.style.display = '';
             }
         }
-        
+
         // Auto-select first available option if current selection is invalid
         if (paymentFor.value === 'Rent' && rentOption && rentOption.style.display === 'none') {
             paymentFor.value = '';
@@ -401,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
         method.addEventListener('change', () => {
             const showAccount = method.value === 'GCash' || method.value === 'Bank Transfer';
             const showProof = method.value === 'GCash' || method.value === 'Bank Transfer';
-            
+
             // Toggle account number field
             if (accountField) {
                 accountField.classList.toggle('d-none', !showAccount);
@@ -409,7 +435,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (accountInput) {
                 accountInput.disabled = !showAccount || method.disabled;
             }
-            
+
             // Toggle proof of payment field
             if (proofField) {
                 proofField.classList.toggle('d-none', !showProof);
